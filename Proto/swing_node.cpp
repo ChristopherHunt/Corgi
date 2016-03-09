@@ -47,10 +47,39 @@ void SwingNode::handle_coord_query() {
     print_msg_info();
 }
 
-void SwingNode::handle_spawn() {
-    printf("===== SPAWN =====\n");
+void SwingNode::handle_partner_query() {
+    printf("===== PARTNER QUERY =====\n");
     printf("SwingNode %d\n", local_rank);
     print_msg_info();
+}
+
+void SwingNode::handle_spawn_job() {
+    printf("===== SPAWN JOB =====\n");
+    printf("SwingNode %d\n", local_rank);
+    print_msg_info();
+}
+
+void SwingNode::handle_spawn_cache() {
+    printf("===== SPAWN CACHE =====\n");
+    printf("SwingNode %d\n", local_rank);
+    print_msg_info();
+
+    int count;
+
+    MPI_Recv(&count, 1, MPI_INT, MPI_ANY_SOURCE, SPAWN_CACHE, parent_comm, &status);
+
+    printf("SwingNode %d received msg\n", local_rank);
+
+    MPI_Comm_dup(MPI_COMM_WORLD, &cache_comm);
+
+    printf("SwingNode %d duplicated MPI_COMM_WORLD\n", local_rank);
+
+    // TODO: Need to make it so we can get unique comms and track them, this is
+    //       just a temporary place holder to get things off the ground!
+    MPI_Comm_spawn("cache_node_main", MPI_ARGV_NULL, count, MPI_INFO_NULL, 0,
+        cache_comm, &cache_comm, MPI_ERRCODES_IGNORE);
+
+    printf("SwingNode %d spawned cache_nodes\n", local_rank);
 }
 
 void SwingNode::handle_exit() {
@@ -60,6 +89,7 @@ void SwingNode::handle_exit() {
 }
 
 void SwingNode::handle_requests() {
+    printf("SwingNode %d entering handle_requests!\n", local_rank);
     while (true) {
         while (msg_ready() == false) {
             message_select();
@@ -94,8 +124,16 @@ void SwingNode::handle_requests() {
                     handle_coord_query();
                     break;
 
-                case SPAWN:
-                    handle_spawn();
+                case PARTNER_QUERY:
+                    handle_partner_query();
+                    break;
+
+                case SPAWN_JOB:
+                    handle_spawn_job();
+                    break;
+
+                case SPAWN_CACHE:
+                    handle_spawn_cache();
                     break;
 
                 case EXIT:
@@ -151,6 +189,8 @@ void SwingNode::orient() {
     // Get data on local comm
     MPI_Comm_size(MPI_COMM_WORLD, &local_size);
     MPI_Comm_rank(MPI_COMM_WORLD, &local_rank);
+
+    printf("++++++> SwingNode %d here!\n", local_rank);
 
     // Get parent comm
     MPI_Comm_get_parent(&parent_comm);

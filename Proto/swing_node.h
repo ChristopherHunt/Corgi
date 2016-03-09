@@ -22,6 +22,11 @@ class SwingNode {
         int local_size;         // Size of MPI_COMM_WORLD
         int local_rank;         // Rank of this node in MPI_COMM_WORLD
 
+        // TODO: This is a temporary comm that is used to get things off the
+        //       ground, this will be replaced with a service that creates and
+        //       tracks unique comms.
+        MPI_Comm cache_comm;
+
         // Struct to hold info about new messages.
         MsgInfo msg_info;
 
@@ -37,6 +42,8 @@ class SwingNode {
         // the coordinator swing node's rank.
         void handle_coord_query();
 
+        void handle_partner_query();
+
         void handle_put();
 
         void handle_get();
@@ -49,7 +56,9 @@ class SwingNode {
 
         void handle_exit();
 
-        void handle_spawn();
+        void handle_spawn_job();
+
+        void handle_spawn_cache();
 
         // Handles all message requests from other nodes.
         void handle_requests();
