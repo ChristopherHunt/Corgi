@@ -1,1 +1,1 @@
-CORGI - A Distributed Cache using MPI
+Compute Oriented Resource Grouping Infrastructure
