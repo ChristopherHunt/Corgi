@@ -20,6 +20,19 @@ void CacheNode::handle_connect() {
     print_msg_info();
 }
 
+void CacheNode::handle_coord_query_ack() {
+    printf("===== COORD_QUERY_ACK =====\n");
+    printf("CacheNode %d\n", local_rank);
+    print_msg_info();
+
+    ASSERT_TRUE(msg_info.count / sizeof(int) == 1, MPI_Abort(MPI_COMM_WORLD, 1));
+
+    MPI_Recv(&coord_rank, 1, MPI_INT, msg_info.src, COORD_QUERY_ACK,
+        parent_comm, &status);
+
+    printf("CacheNode %d's coordinator node is %d!\n", local_rank, coord_rank);
+}
+
 void CacheNode::handle_put() {
     printf("===== PUT =====\n");
     printf("CacheNode %d\n", local_rank);
@@ -34,6 +47,12 @@ void CacheNode::handle_put_ack() {
 
 void CacheNode::handle_get() {
     printf("===== GET =====\n");
+    printf("CacheNode %d\n", local_rank);
+    print_msg_info();
+}
+
+void CacheNode::handle_get_ack() {
+    printf("===== GET_ACK =====\n");
     printf("CacheNode %d\n", local_rank);
     print_msg_info();
 }
@@ -63,6 +82,7 @@ void CacheNode::handle_exit() {
 }
 
 void CacheNode::handle_requests() {
+    printf("CacheNode %d entering handle_requests!\n", local_rank);
     while (true) {
         while (msg_ready() == false) {
             message_select();
@@ -74,57 +94,43 @@ void CacheNode::handle_requests() {
 
             switch (msg_info.tag) {
                 case CONNECT:
-                    printf("===== CONNECT =====\n");
-                    printf("CacheNode %d\n", local_rank);
-                    print_msg_info();
+                    handle_connect();
                     break;
 
                 case PUT:
-                    printf("===== PUT =====\n");
-                    printf("CacheNode %d\n", local_rank);
-                    print_msg_info();
+                    handle_put();
                     break;
 
                 case PUT_ACK:
-                    printf("===== PUT_ACK =====\n");
-                    printf("CacheNode %d\n", local_rank);
-                    print_msg_info();
+                    handle_put_ack();
                     break;
 
                 case GET:
-                    printf("===== GET =====\n");
-                    printf("CacheNode %d\n", local_rank);
-                    print_msg_info();
+                    handle_get();
                     break;
 
                 case GET_ACK:
-                    printf("===== GET_ACK =====\n");
-                    printf("CacheNode %d\n", local_rank);
-                    print_msg_info();
+                    handle_get_ack();
                     break;
 
                 case FORWARD:
-                    printf("===== FORWARD =====\n");
-                    printf("CacheNode %d\n", local_rank);
-                    print_msg_info();
+                    handle_forward();
+                    break;
+
+                case COORD_QUERY_ACK:
+                    handle_coord_query_ack();
                     break;
 
                 case DELETE:
-                    printf("===== DELETE =====\n");
-                    printf("CacheNode %d\n", local_rank);
-                    print_msg_info();
+                    handle_delete();
                     break;
 
                 case DELETE_ACK:
-                    printf("===== DELETE_ACK =====\n");
-                    printf("CacheNode %d\n", local_rank);
-                    print_msg_info();
+                    handle_delete_ack();
                     break;
 
                 case EXIT:
-                    printf("===== EXIT =====\n");
-                    printf("CacheNode %d\n", local_rank);
-                    print_msg_info();
+                    handle_exit();
                     break;
 
                 default:
@@ -176,6 +182,8 @@ void CacheNode::orient() {
     MPI_Comm_size(MPI_COMM_WORLD, &local_size);
     MPI_Comm_rank(MPI_COMM_WORLD, &local_rank);
 
+    printf("-----> CacheNode %d here!\n", local_rank);
+
     // Get parent comm
     MPI_Comm_get_parent(&parent_comm);
 
@@ -188,19 +196,18 @@ void CacheNode::orient() {
     MPI_Comm_remote_size(parent_comm, &parent_size);
     MPI_Comm_rank(parent_comm, &parent_rank);
 
-    // Ask parent rank 0 process asking for coordinator swing node's rank.
-    MPI_Send(&local_rank, 1, MPI_INT, 0, 0, parent_comm);
+    printf("CacheNode %d see's parent's comm size: %d\n", local_rank, parent_size); 
+    printf("CacheNode %d asking for coordinator node!\n", local_rank);
 
-    // Wait for response from parent.
-    MPI_Recv(&coord_rank, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG, parent_comm,
-        &status);
+    // Ask parent rank 0 process asking for coordinator swing node's rank.
+    MPI_Send(&local_rank, 1, MPI_INT, 0, COORD_QUERY, parent_comm);
 }
 
 void CacheNode::print_msg_info() {
     printf("===== MsgInfo =====\n");
-    printf("tag:   %d\n", msg_info.tag);
-    printf("src:   %d\n", msg_info.src);
-    printf("count: %d\n", msg_info.count);
+    printf("tag ---------> %d\n", msg_info.tag);
+    printf("src ---------> %d\n", msg_info.src);
+    printf("count (bytes): %d\n", msg_info.count);
 
     if (msg_info.comm == MPI_COMM_WORLD) {
         printf("comm:  MPI_COMM_WORLD\n");

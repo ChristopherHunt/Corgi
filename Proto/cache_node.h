@@ -37,6 +37,8 @@ class CacheNode {
         // MORE).
         void handle_connect();
 
+        void handle_coord_query_ack();
+
         void handle_put();
 
         void handle_put_ack();

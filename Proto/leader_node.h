@@ -1,11 +1,12 @@
 #ifndef __LEADER__NODE__H__
 #define __LEADER__NODE__H__
 
-#include <iostream>
 #include <map>
 #include <mpi.h>
 #include <queue>
 #include <set>
+#include <stdint.h>
+#include <string>
 #include "network_header.h"
 
 class LeaderNode {
@@ -16,32 +17,49 @@ class LeaderNode {
 
     private:
         MPI_Status status;      // Status structure for checking communications.
+
+        int pair[2];
+        int triple[3];
+
         int local_size;         // Size of MPI_COMM_WORLD
         int local_rank;         // Rank of this node in MPI_COMM_WORLD
+        int next_tag;           // A counter for assigning new job tags.
 
         // Struct to hold info about new messages.
         MsgInfo msg_info;
 
+        // Buffer for holding message data.
+        //uint8_t *buf;
+
         // Queue of messages for the cache_node to handle.
         std::queue<MsgInfo> msg_queue;
 
-        // TODO: Probably collapse these two sets into a single set and a
-        // strcture in order to make them more tightly coupled.
-        MPI_Comm swing_comm;
-        MPI_Comm cache_comm;
+        // Map of job name to its tag which is used to represent the job
+        // internally.
+        std::map<std::string, int> name_to_tag;
 
-        // Set of swing node communicators operating under this leader.
-        std::set<MPI_Comm> swing_comms;
+        // Map of job tag to communicator.
+        std::map<int, MPI_Comm> tag_to_comm;
 
-        // Set of swing node communicators operating under this leader.
-        std::set<MPI_Comm> cache_comms;
+        // Map of job tag to map of cache node -> coord swing node.
+        std::map<int, std::map<int, int> > tag_to_coord;
 
-        // Map of cache nodes to their coordinator swing nodes.
-        std::map<int, int> cache_to_coord_swing;
+        // Map of job tag to team node pairings (job node -> cache_node).
+        std::map<int, std::map<int, int> > tag_to_team;
+
+        // Allocates space for dynamic data structures within the object.
+        //void allocate();
+
+        // Method which creates a hard-coded job for cache testing.
+        void create_test_job();
+
+        // Defines the MPI_Datatypes needed for this node to communicate with
+        // others.
+        void define_datatypes();
 
         void handle_coord_query();
 
-        void handle_partner_query();
+        void handle_team_query();
 
         void handle_spawn_job();
 
@@ -58,7 +76,7 @@ class LeaderNode {
         // Tells a swing node to spawn a set of cache nodes under it, also
         // creates a mapping of cache nodes to coordinator swing nodes so that
         // they can organize themselves.
-        void spawn_cache_nodes(MPI_Comm *parent, int count);
+        void spawn_cache_nodes(int job_tag, MPI_Comm *parent, int count);
 
         // Non-blocking polls from the MPI_COMM_WORLD and parent_comm
         // communicators, adding MsgInfo structs to the msg_queue for the main
