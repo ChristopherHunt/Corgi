@@ -18,4 +18,4 @@ cache_node_main: cache_node.cpp cache_node_main.cpp
 .PHONY: clean
 
 clean:
-	rm *.o $(OBJS) $(EXECS)
+	rm -f *.o $(EXECS)
