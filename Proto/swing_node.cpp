@@ -9,135 +9,121 @@ SwingNode::SwingNode() {
     //define_datatypes();
 
     // Allocates data structures within this object.
-    //allocate();
+    allocate();
 
     // Handle all requests sent to this cache node.
     handle_requests();
 }
 
 SwingNode::~SwingNode() {
-    //free(buf);
+    free(buf);
 }
 
-/*
 void SwingNode::allocate() {
    buf = (uint8_t *)calloc(INITIAL_BUF_SIZE, sizeof(uint8_t));
    ASSERT_TRUE(buf != NULL, MPI_Abort(MPI_COMM_WORLD, 1));
 }
-*/
-
-/*
-void SwingNode::define_datatypes() {
-    MPI_Type_contiguous(2, MPI_INT, &PAIR);
-    MPI_Type_commit(&PAIR);
-}
-*/
 
 void SwingNode::handle_put() {
     printf("===== PUT =====\n");
     printf("SwingNode %d\n", local_rank);
-    print_msg_info();
+    print_msg_info(&msg_info);
 }
 
 void SwingNode::handle_get() {
     printf("===== GET =====\n");
     printf("SwingNode %d\n", local_rank);
-    print_msg_info();
+    print_msg_info(&msg_info);
 }
 
 void SwingNode::handle_delete() {
     printf("===== DELETE =====\n");
     printf("SwingNode %d\n", local_rank);
-    print_msg_info();
+    print_msg_info(&msg_info);
 }
 
 void SwingNode::handle_forward() {
     printf("===== FORWARD =====\n");
     printf("SwingNode %d\n", local_rank);
-    print_msg_info();
+    print_msg_info(&msg_info);
 }
 
 void SwingNode::handle_delete_ack() {
     printf("===== DELETE_ACK =====\n");
     printf("SwingNode %d\n", local_rank);
-    print_msg_info();
-}
-
-void SwingNode::handle_coord_query() {
-    printf("===== COORD QUERY =====\n");
-    printf("SwingNode %d\n", local_rank);
-    print_msg_info();
-
-    ASSERT_TRUE(msg_info.count / sizeof(int) == 1, MPI_Abort(MPI_COMM_WORLD, 1));
-
-    int caller_rank;
-
-    // Receive coordinator node query and determine who it came from.
-    MPI_Recv(&caller_rank, 1, MPI_INT, msg_info.src, COORD_QUERY,
-            msg_info.comm, &status);
-
-    // Build pair to send to leader asking for coordinator node for caller.
-    pair[0] = comm_to_tag[msg_info.comm];
-    pair[1] = caller_rank;
-
-    printf("SwingNode %d -> CacheNode %d requesting coordinator\n", local_rank, caller_rank);
-
-    // Ask the leader for the caller's coordinator node.
-    MPI_Send(pair, 2, MPI_INT, 0, COORD_QUERY, parent_comm);
-}
-
-void SwingNode::handle_coord_query_ack() {
-    printf("===== COORD QUERY ACK =====\n");
-    printf("SwingNode %d\n", local_rank);
-    print_msg_info();
-
-    ASSERT_TRUE(msg_info.count / sizeof(int) == 3, MPI_Abort(MPI_COMM_WORLD, 1));
-
-    MPI_Recv(triple, 3, MPI_INT, msg_info.src, COORD_QUERY_ACK, msg_info.comm,
-        &status);
-
-    int job_tag = triple[0];
-    int coord_node = triple[1];
-    int cache_node = triple[2];
-    MPI_Comm comm = tag_to_comm[job_tag];
-
-    printf("SwingNode %d received msg\n", local_rank);
-    printf("SwingNode %d job_tag: %d\n", local_rank, job_tag);
-    printf("SwingNode %d coord_node: %d\n", local_rank, coord_node);
-    printf("SwingNode %d cache_node: %d\n", local_rank, cache_node);
-
-    // Only send the coordinator node's rank to the CacheNode.
-    MPI_Send(&coord_node, 1, MPI_INT, cache_node, COORD_QUERY_ACK, comm);
+    print_msg_info(&msg_info);
 }
 
 void SwingNode::handle_team_query() {
     printf("===== TEAM QUERY =====\n");
     printf("SwingNode %d\n", local_rank);
-    print_msg_info();
+    print_msg_info(&msg_info);
 }
 
 void SwingNode::handle_spawn_job() {
     printf("===== SPAWN JOB =====\n");
     printf("SwingNode %d\n", local_rank);
-    print_msg_info();
+    print_msg_info(&msg_info);
+
+    // Receive the job spawn request from the leader.
+    MPI_Recv(buf, msg_info.count, MPI_UINT8_T, msg_info.src, SPAWN_JOB,
+            msg_info.comm, &status);
+
+    // Ensure that the message is the correct size.
+    ASSERT_TRUE(msg_info.count == sizeof(SpawnNodesTemplate),
+        MPI_Abort(MPI_COMM_WORLD, 1));
+
+    printf("SwingNode %d received spawn_job msg successfully!\n", local_rank);
+
+    // Pull out the job number so we can know which cache nodes to send to.
+    SpawnNodesTemplate *format = (SpawnNodesTemplate *)buf;
+    uint32_t job_num = format->job_num;
+
+    // There must already have been a CommsGroup entry in the job_to_comms
+    // map for this job number (either from cache node creation or from cache
+    // node splitting / regrouping in a previous step).
+    ASSERT_TRUE(job_to_comms.count(job_num) != 0, MPI_Abort(MPI_COMM_WORLD, 1));
+    MPI_Comm cache_comm = job_to_comms[job_num].cache;
+
+    int comm_size;
+    MPI_Comm_remote_size(cache_comm, &comm_size);
+
+    // Send each cache node a request to spawn a job node.
+    for (int i = 0; i < comm_size; ++i) {
+        printf("SwingNode %d sending spawn cache msg to cache node %d\n",
+            local_rank, i);
+        MPI_Send(buf, msg_info.count, MPI_UINT8_T, i, SPAWN_JOB, cache_comm);
+    }
 }
 
 void SwingNode::handle_spawn_cache() {
     printf("===== SPAWN CACHE =====\n");
     printf("SwingNode %d\n", local_rank);
-    print_msg_info();
+    print_msg_info(&msg_info);
 
-    ASSERT_TRUE(msg_info.count / sizeof(int) == 2, MPI_Abort(MPI_COMM_WORLD, 1));
-
-    MPI_Recv(pair, 2, MPI_INT, msg_info.src, SPAWN_CACHE,
+    MPI_Recv(buf, msg_info.count, MPI_UINT8_T, msg_info.src, SPAWN_CACHE,
             msg_info.comm, &status);
 
-    printf("SwingNode %d received msg\n", local_rank);
-    printf("SwingNode %d job #: %d\n", local_rank, pair[0]);
-    printf("SwingNode %d spawn count: %d\n", local_rank, pair[1]);
+    SpawnNodesTemplate *format = (SpawnNodesTemplate *)buf;
+    uint32_t job_num = format->job_num;
+    uint16_t node_count = format->count;
+    uint16_t mapping_size = format->mapping_size;
+    printf("SwingNode %d msg_info.count: %u\n", local_rank, msg_info.count);
+    printf("SwingNode %d mapping_size: %d\n", local_rank, mapping_size);
+    std::string mapping_str(format->mapping, format->mapping + mapping_size);
+    std::vector<char> mapping;
+    stringlist_to_vector(mapping, mapping_str);
 
-    int job_tag = pair[0];
-    int node_count = pair[1];
+    printf("SwingNode %d received msg\n", local_rank);
+    printf("SwingNode %d job #: %d\n", local_rank, job_num);
+    printf("SwingNode %d spawn count: %d\n", local_rank, node_count);
+    printf("SwingNode %d mapping: %s\n", local_rank, mapping_str.c_str());
+    printf("SwingNode %d mapping as a vector:\n", local_rank);
+    for (std::vector<char>::iterator it = mapping.begin();
+        it != mapping.end(); ++it) {
+        std::cout << *it << std::endl;
+    }
+    std::cout << std::endl;
 
     MPI_Comm temp;
 
@@ -145,14 +131,28 @@ void SwingNode::handle_spawn_cache() {
 
     printf("SwingNode %d duplicated MPI_COMM_WORLD\n", local_rank);
 
-    // TODO: Need to make it so we can get unique comms and track them, this is
-    //       just a temporary place holder to get things off the ground!
-    MPI_Comm_spawn("cache_node_main", MPI_ARGV_NULL, node_count, MPI_INFO_NULL,
+    // Create an array that maps each cache node to its corresponding
+    // coordinator swing node, and pass that to the nodes upon spawning.
+    char *argv[2];
+    argv[0] = &mapping[0];
+    argv[1] = NULL;
+
+    // All swing nodes spawn the cache nodes.
+    MPI_Comm_spawn("cache_node_main", argv, node_count, MPI_INFO_NULL,
             0, temp, &temp, MPI_ERRCODES_IGNORE);
 
+    // Ensure that this job does not have cache nodes already associated with
+    // it.
+    ASSERT_TRUE(job_to_comms.count(job_num) == 0, MPI_Abort(MPI_COMM_WORLD, 1));
+
+    CommGroup job_comm_group;
+    job_comm_group.swing = MPI_COMM_WORLD;
+    job_comm_group.cache = temp;
+    job_comm_group.job = MPI_COMM_NULL;
+
     // Update bookkeeping.
-    comm_to_tag[temp] = job_tag;
-    tag_to_comm[job_tag] = temp;
+    comm_to_job[temp] = job_num;
+    job_to_comms[job_num] = job_comm_group;
 
     printf("SwingNode %d spawned cache_nodes\n", local_rank);
 }
@@ -160,7 +160,7 @@ void SwingNode::handle_spawn_cache() {
 void SwingNode::handle_exit() {
     printf("===== EXIT =====\n");
     printf("SwingNode %d\n", local_rank);
-    print_msg_info();
+    print_msg_info(&msg_info);
 }
 
 void SwingNode::handle_requests() {
@@ -195,14 +195,6 @@ void SwingNode::handle_requests() {
                     handle_forward();
                     break;
 
-                case COORD_QUERY:
-                    handle_coord_query();
-                    break;
-
-                case COORD_QUERY_ACK:
-                    handle_coord_query_ack();
-                    break;
-
                 case TEAM_QUERY:
                     handle_team_query();
                     break;
@@ -222,7 +214,7 @@ void SwingNode::handle_requests() {
                 default:
                     printf("===== DEFAULT =====\n");
                     printf("SwingNode %d\n", local_rank);
-                    print_msg_info();
+                    print_msg_info(&msg_info);
                     ASSERT_TRUE(1 == 0, MPI_Abort(MPI_COMM_WORLD, 1));
                     break;
             }
@@ -253,7 +245,7 @@ void SwingNode::message_select() {
         msg_queue.push(msg_info);
     }
 
-    for (auto const &entry : comm_to_tag) {
+    for (auto const &entry : comm_to_job) {
         MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, entry.first, &flag, &status);
 
         if (flag == 1) {
@@ -264,34 +256,6 @@ void SwingNode::message_select() {
             msg_queue.push(msg_info);
         }
     }
-
-    /*
-    // TODO: Expand this to poll all sleds that this swing node is servicing!
-    // Check to see if any other cache nodes are attempting to talk to you.
-    MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &flag, &status);
-
-    if (flag == 1) {
-        msg_info.tag = status.MPI_TAG; 
-        msg_info.src = status.MPI_SOURCE;
-        msg_info.comm = MPI_COMM_WORLD;
-        MPI_Get_count(&status, MPI_BYTE, &msg_info.count);
-        msg_queue.push(msg_info);
-    }
-
-    // Check to see if any other cache nodes are attempting to talk to you.
-    MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, parent_comm, &flag, &status);
-
-    if (flag == 1) {
-        msg_info.tag = status.MPI_TAG; 
-        msg_info.src= status.MPI_SOURCE;
-        msg_info.comm = parent_comm;
-        MPI_Get_count(&status, MPI_BYTE, &msg_info.count);
-        msg_queue.push(msg_info);
-    }
-
-    // TODO: Handle messages from JOB nodes! (maybe not if we go for cache
-    // processes running as threads within the job processes).
-    */
 }
 
 bool SwingNode::msg_ready() {
@@ -318,6 +282,7 @@ void SwingNode::orient() {
     MPI_Comm_rank(parent_comm, &parent_rank);
 }
 
+/*
 void SwingNode::print_msg_info() {
     printf("===== MsgInfo =====\n");
     printf("tag ---------> %d\n", msg_info.tag);
@@ -331,3 +296,4 @@ void SwingNode::print_msg_info() {
         printf("comm:  OTHER\n");
     }
 }
+*/

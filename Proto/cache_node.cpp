@@ -1,84 +1,87 @@
 #include "cache_node.h"
 
-CacheNode::CacheNode() {
+// TODO: NEED TO ADD FUNCTIONALITY TO ADD JOBS WITHOUT ADDING CACHE NODES.
+
+CacheNode::CacheNode(std::vector<uint32_t>& mapping) {
     // Determine where this node is in the system.
     orient();
 
+    // Get coordinator swing node's rank
+    coord_rank = mapping[local_rank];
+
+    printf("CacheNode %d's coord swing node is %d\n", local_rank, coord_rank);
+
+    // Allocates data structures within this object.
+    allocate();
+
     // Setup the socket to communicate with job processes.
-    setup_socket();
+    //setup_socket();
 
     // Handle all requests sent to this cache node.
     handle_requests();
 }
 
 CacheNode::~CacheNode() {
+    free(buf);
+}
+
+void CacheNode::allocate() {
+    buf = (uint8_t *)calloc(INITIAL_BUF_SIZE, sizeof(uint8_t));
+    ASSERT_TRUE(buf != NULL, MPI_Abort(MPI_COMM_WORLD, 1));
 }
 
 void CacheNode::handle_connect() {
     printf("===== CONNECT =====\n");
     printf("CacheNode %d\n", local_rank);
-    print_msg_info();
-}
-
-void CacheNode::handle_coord_query_ack() {
-    printf("===== COORD_QUERY_ACK =====\n");
-    printf("CacheNode %d\n", local_rank);
-    print_msg_info();
-
-    ASSERT_TRUE(msg_info.count / sizeof(int) == 1, MPI_Abort(MPI_COMM_WORLD, 1));
-
-    MPI_Recv(&coord_rank, 1, MPI_INT, msg_info.src, COORD_QUERY_ACK,
-        parent_comm, &status);
-
-    printf("CacheNode %d's coordinator node is %d!\n", local_rank, coord_rank);
+    print_msg_info(&msg_info);
 }
 
 void CacheNode::handle_put() {
     printf("===== PUT =====\n");
     printf("CacheNode %d\n", local_rank);
-    print_msg_info();
+    print_msg_info(&msg_info);
 }
 
 void CacheNode::handle_put_ack() {
     printf("===== PUT_ACK =====\n");
     printf("CacheNode %d\n", local_rank);
-    print_msg_info();
+    print_msg_info(&msg_info);
 }
 
 void CacheNode::handle_get() {
     printf("===== GET =====\n");
     printf("CacheNode %d\n", local_rank);
-    print_msg_info();
+    print_msg_info(&msg_info);
 }
 
 void CacheNode::handle_get_ack() {
     printf("===== GET_ACK =====\n");
     printf("CacheNode %d\n", local_rank);
-    print_msg_info();
+    print_msg_info(&msg_info);
 }
 
 void CacheNode::handle_forward() {
     printf("===== FORWARD =====\n");
     printf("CacheNode %d\n", local_rank);
-    print_msg_info();
+    print_msg_info(&msg_info);
 }
 
 void CacheNode::handle_delete() {
     printf("===== DELETE =====\n");
     printf("CacheNode %d\n", local_rank);
-    print_msg_info();
+    print_msg_info(&msg_info);
 }
 
 void CacheNode::handle_delete_ack() {
     printf("===== DELETE_ACK =====\n");
     printf("CacheNode %d\n", local_rank);
-    print_msg_info();
+    print_msg_info(&msg_info);
 }
 
 void CacheNode::handle_exit() {
     printf("===== EXIT =====\n");
     printf("CacheNode %d\n", local_rank);
-    print_msg_info();
+    print_msg_info(&msg_info);
 }
 
 void CacheNode::handle_requests() {
@@ -117,16 +120,16 @@ void CacheNode::handle_requests() {
                     handle_forward();
                     break;
 
-                case COORD_QUERY_ACK:
-                    handle_coord_query_ack();
-                    break;
-
                 case DELETE:
                     handle_delete();
                     break;
 
                 case DELETE_ACK:
                     handle_delete_ack();
+                    break;
+
+                case SPAWN_JOB:
+                    handle_spawn_job();
                     break;
 
                 case EXIT:
@@ -136,12 +139,71 @@ void CacheNode::handle_requests() {
                 default:
                     printf("===== DEFAULT =====\n");
                     printf("CacheNode %d\n", local_rank);
-                    print_msg_info();
+                    print_msg_info(&msg_info);
                     ASSERT_TRUE(1 == 0, MPI_Abort(MPI_COMM_WORLD, 1));
                     break;
             }
         }
     }
+}
+
+void CacheNode::handle_spawn_job() {
+    printf("===== SPAWN JOB =====\n");
+    printf("CacheNode %d\n", local_rank);
+    print_msg_info(&msg_info);
+
+    MPI_Recv(buf, msg_info.count, MPI_UINT8_T, msg_info.src, SPAWN_JOB,
+            msg_info.comm, &status);
+
+    ASSERT_TRUE(msg_info.count == sizeof(SpawnNodesTemplate),
+            MPI_Abort(MPI_COMM_WORLD, 1));
+
+    SpawnNodesTemplate *format = (SpawnNodesTemplate *)buf;
+    uint32_t job_num = format->job_num;
+    uint16_t node_count = format->count;
+    uint16_t mapping_size = format->mapping_size;
+    printf("CacheNode %d msg_info.count: %u\n", local_rank, msg_info.count);
+    printf("CacheNode %d mapping_size: %d\n", local_rank, mapping_size);
+    std::string mapping_str(format->mapping, format->mapping + mapping_size);
+    std::vector<char> mapping;
+    stringlist_to_vector(mapping, mapping_str);
+
+    uint8_t exec_size = format->exec_size;
+    std::string exec_name(format->exec_name, format->exec_name + exec_size);
+
+    printf("CacheNode %d received msg\n", local_rank);
+    printf("CacheNode %d job #: %d\n", local_rank, job_num);
+    printf("CacheNode %d spawn count: %d\n", local_rank, node_count);
+    printf("CacheNode %d mapping: %s\n", local_rank, mapping_str.c_str());
+    printf("CacheNode %d mapping as a vector:\n", local_rank);
+    for (std::vector<char>::iterator it = mapping.begin();
+            it != mapping.end(); ++it) {
+        std::cout << *it << std::endl;
+    }
+    std::cout << std::endl;
+    printf("CacheNode %d exec_size: %d\n", local_rank, exec_size);
+    printf("CacheNode %d exec_name: %s\n", local_rank, exec_name.c_str());
+
+    // Create an array that maps each job node to its corresponding cache node.
+    char *argv[2];
+    argv[0] = &mapping[0];
+    argv[1] = NULL;
+
+    MPI_Comm comm;
+    MPI_Comm_dup(MPI_COMM_WORLD, &comm);
+
+    // Spawn the job nodes with the appropriate argv mapping.
+    MPI_Comm_spawn(exec_name.c_str(), argv, node_count, MPI_INFO_NULL,
+        0, comm, &comm, MPI_ERRCODES_IGNORE);
+
+    // Update bookkeeping.
+    CommGroup job_comm_group;
+    job_comm_group.swing = msg_info.comm;
+    job_comm_group.cache = MPI_COMM_WORLD;
+    job_comm_group.job = comm;
+
+    job_to_comms[job_num] = job_comm_group;
+    printf("CacheNode %d finished spawning Job %d\n", local_rank, job_num);
 }
 
 void CacheNode::message_select() {
@@ -197,25 +259,23 @@ void CacheNode::orient() {
     MPI_Comm_rank(parent_comm, &parent_rank);
 
     printf("CacheNode %d see's parent's comm size: %d\n", local_rank, parent_size); 
-    printf("CacheNode %d asking for coordinator node!\n", local_rank);
-
-    // Ask parent rank 0 process asking for coordinator swing node's rank.
-    MPI_Send(&local_rank, 1, MPI_INT, 0, COORD_QUERY, parent_comm);
 }
 
-void CacheNode::print_msg_info() {
-    printf("===== MsgInfo =====\n");
-    printf("tag ---------> %d\n", msg_info.tag);
-    printf("src ---------> %d\n", msg_info.src);
-    printf("count (bytes): %d\n", msg_info.count);
+/*
+   void CacheNode::print_msg_info() {
+   printf("===== MsgInfo =====\n");
+   printf("tag ---------> %d\n", msg_info.tag);
+   printf("src ---------> %d\n", msg_info.src);
+   printf("count (bytes): %d\n", msg_info.count);
 
-    if (msg_info.comm == MPI_COMM_WORLD) {
-        printf("comm:  MPI_COMM_WORLD\n");
-    }
-    else {
-        printf("comm:  OTHER\n");
-    }
-}
+   if (msg_info.comm == MPI_COMM_WORLD) {
+   printf("comm:  MPI_COMM_WORLD\n");
+   }
+   else {
+   printf("comm:  OTHER\n");
+   }
+   }
+   */
 
 void CacheNode::setup_socket() {
 }

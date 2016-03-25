@@ -1,16 +1,19 @@
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <iostream>
+#include <sstream>
 #include "leader_node.h"
 
 LeaderNode::LeaderNode() {
     // Set tag counter to 0;
-    next_tag = 0;
+    next_job_num = 0;
 
     // Determine where this node is in the system.
     orient();
 
     // Allocate space for data structures within this object.
-    //allocate();
+    allocate();
 
     // TODO: REMOVE THIS (just for testing)
     create_test_job();
@@ -20,22 +23,14 @@ LeaderNode::LeaderNode() {
 }
 
 LeaderNode::~LeaderNode() {
-    //free(buf);
+    //MPI_Type_free(&JOB_EXEC_MSG);
+    free(buf);
 }
 
-/*
 void LeaderNode::allocate() {
     buf = (uint8_t *)calloc(INITIAL_BUF_SIZE, sizeof(uint8_t));
     ASSERT_TRUE(buf != NULL, MPI_Abort(MPI_COMM_WORLD, 1));
 }
-*/
-
-/*
-void LeaderNode::define_datatypes() {
-    MPI_Type_contiguous(2, MPI_INT, &PAIR);
-    MPI_Type_commit(&PAIR);
-}
-*/
 
 // TODO: REMOVE THIS METHOD (It is just for testing functionality).
 void LeaderNode::create_test_job() {
@@ -43,86 +38,66 @@ void LeaderNode::create_test_job() {
 
     // TODO: This is a simple place holder for swing node spawning,
     //       will want to make this more flexible later.
-    spawn_swing_nodes(MPI_COMM_WORLD, &temp, 4);
-
-    int tag = next_tag++;
-
-    name_to_tag["Job1"] = tag;
-    tag_to_comm[tag] = temp;
+    spawn_swing_nodes(MPI_COMM_WORLD, &temp, 2);
 
     // TODO: REMOVE
     int size;
-    MPI_Comm_remote_size(tag_to_comm[tag], &size);
-    printf("after --- Job1 size (swing node count): %d\n", size);
+    MPI_Comm_remote_size(temp, &size);
+    printf("leader after --- swing node count: %d\n", size);
     //
-
-    // TODO: This is a simple place holder for cache node spawning,
-    //       will want to make this more flexible later.
-    spawn_cache_nodes(tag, &temp, 4);
 
     // TODO: Make a better way of adding mappings for coordinator nodes.
     //       Use this bandaid to get off the ground for now.
-    std::map<int, int> temp_map;
-    temp_map[0] = 0;
-    temp_map[1] = 0;
-    temp_map[2] = 1;
-    temp_map[3] = 1;
-    tag_to_coord[tag] = temp_map;
+    int job_num = next_job_num++; 
+    comm_to_job[temp] = job_num; 
+     
+    std::vector<uint32_t> temp_vec;
+    temp_vec.push_back(0);
+    temp_vec.push_back(0);
+    temp_vec.push_back(1);
+    temp_vec.push_back(1);
+    job_to_swing[job_num] = temp_vec;
+
+    // TODO: This is a simple place holder for cache node spawning,
+    //       will want to make this more flexible later.
+    spawn_cache_nodes(job_num, &temp, 4);
 
     // TODO: Make a better way of adding mappings for team nodes.
     //       Use this bandaid to get off the ground for now.
-    temp_map.clear();
-    temp_map[0] = 0;
-    temp_map[1] = 1;
-    temp_map[2] = 2;
-    temp_map[3] = 3;
-    tag_to_team[tag] = temp_map;
-}
+    temp_vec.clear();
+    temp_vec.push_back(0);
+    temp_vec.push_back(1);
+    temp_vec.push_back(2);
+    temp_vec.push_back(3);
+    job_to_cache[job_num] = temp_vec;
 
-void LeaderNode::handle_coord_query() {
-    printf("===== COORD QUERY =====\n");
-    printf("LeaderNode %d\n", local_rank);
-    print_msg_info();
-
-    ASSERT_TRUE(msg_info.count / sizeof(int) == 2, MPI_Abort(MPI_COMM_WORLD, 1));
-
-    MPI_Recv(pair, 2, MPI_INT, msg_info.src, msg_info.tag, msg_info.comm,
-        &status);
-
-    int job_tag = pair[0];
-    int cache_node = pair[1];
-    int coord_node = tag_to_coord[job_tag][cache_node];
-
-    triple[0] = job_tag;
-    triple[1] = coord_node;
-    triple[2] = cache_node;
-
-    printf("Leader responding to COORD_QUERY!\n");
-    MPI_Send(triple, 3, MPI_INT, msg_info.src, COORD_QUERY_ACK, msg_info.comm);
+    // TODO: This is a simple place holder for job node spawning,
+    //       will want to make this more flexible later.
+    spawn_job_nodes(job_num, "job_node_main", &temp, 4);
 }
 
 void LeaderNode::handle_team_query() {
     printf("===== TEAM QUERY =====\n");
     printf("LeaderNode %d\n", local_rank);
-    print_msg_info();
+    print_msg_info(&msg_info);
 }
 
 void LeaderNode::handle_spawn_job() {
     printf("===== SPAWN JOB =====\n");
     printf("LeaderNode %d\n", local_rank);
-    print_msg_info();
+    print_msg_info(&msg_info);
 }
 
 void LeaderNode::handle_spawn_cache() {
     printf("===== SPAWN CACHE =====\n");
     printf("LeaderNode %d\n", local_rank);
-    print_msg_info();
+    print_msg_info(&msg_info);
 }
 
 void LeaderNode::handle_exit() {
     printf("===== EXIT =====\n");
     printf("LeaderNode %d\n", local_rank);
-    print_msg_info();
+    print_msg_info(&msg_info);
 }
 
 void LeaderNode::handle_requests() {
@@ -135,13 +110,9 @@ void LeaderNode::handle_requests() {
         while (msg_ready() == true) {
             msg_info = msg_queue.front();
             msg_queue.pop();
-            printf("msg_queue.size: %d\n", msg_queue.size());
+            printf("msg_queue.size: %u\n", msg_queue.size());
 
             switch (msg_info.tag) {
-                case COORD_QUERY:
-                    handle_coord_query();
-                    break;
-
                 case TEAM_QUERY:
                     handle_team_query();
                     break;
@@ -161,7 +132,7 @@ void LeaderNode::handle_requests() {
                 default:
                     printf("===== DEFAULT =====\n");
                     printf("LeaderNode %d\n", local_rank);
-                    print_msg_info();
+                    print_msg_info(&msg_info);
                     ASSERT_TRUE(1 == 0, MPI_Abort(MPI_COMM_WORLD, 1));
                     break;
             }
@@ -172,13 +143,13 @@ void LeaderNode::handle_requests() {
 void LeaderNode::message_select() {
     int flag;
 
-    for (auto const &entry : tag_to_comm) { 
-        MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, entry.second, &flag, &status);
+    for (auto const &entry : comm_to_job) { 
+        MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, entry.first, &flag, &status);
 
         if (flag == 1) {
             msg_info.tag = status.MPI_TAG; 
             msg_info.src = status.MPI_SOURCE;
-            msg_info.comm = entry.second;
+            msg_info.comm = entry.first;
             MPI_Get_count(&status, MPI_BYTE, &msg_info.count);
             msg_queue.push(msg_info);
         }
@@ -200,6 +171,7 @@ void LeaderNode::orient() {
     }
 }
 
+/*
 void LeaderNode::print_msg_info() {
     printf("===== MsgInfo =====\n");
     printf("tag ---------> %d\n", msg_info.tag);
@@ -213,8 +185,9 @@ void LeaderNode::print_msg_info() {
         printf("comm:  OTHER\n");
     }
 }
+*/
 
-void LeaderNode::spawn_swing_nodes(MPI_Comm parent, MPI_Comm *child, int count) {
+void LeaderNode::spawn_swing_nodes(MPI_Comm parent, MPI_Comm *child, uint16_t count) {
     // TODO: Make it so we can get unique comm handles prior to placing them in
     //       the swing comm queue. For now just hardcode a name to make things
     //       easier for testing.
@@ -224,19 +197,66 @@ void LeaderNode::spawn_swing_nodes(MPI_Comm parent, MPI_Comm *child, int count) 
         *child, child, MPI_ERRCODES_IGNORE);
 }
 
-void LeaderNode::spawn_cache_nodes(int job_tag, MPI_Comm *comm, int count) {
+void LeaderNode::spawn_cache_nodes(uint32_t job_num, MPI_Comm *comm, uint16_t count) {
     printf("LeaderNode sending SPAWN_CACHE of size %d\n", count);
     int comm_size;
     MPI_Comm_remote_size(*comm, &comm_size);
 
-    pair[0] = job_tag;
-    pair[1] = count;
+    printf("job_num: %d\n", job_num);
+    printf("count: %d\n", count);
+
+    SpawnNodesTemplate *format = (SpawnNodesTemplate *)buf;
+    format->job_num = job_num;
+    format->count = count;
+
+    std::vector<uint32_t> vec = job_to_swing[job_num];
+    std::string result;
+    vector_to_stringlist(vec, result);
+    format->mapping_size = (uint16_t)result.size();
+    memcpy(format->mapping, result.c_str(), result.size());
+
+    ASSERT_TRUE(result.size() <= MAX_MAPPING_SIZE, MPI_Abort(MPI_COMM_WORLD, 1));
+    int msg_size = sizeof(SpawnNodesTemplate);
+    printf("spawn_cache_msg_size: %d\n", msg_size);
+    printf("job_num: %d\ncount: %d\nmapping_size: %d\nmapping: %s\n",
+        format->job_num, format->count, format->mapping_size, format->mapping);
 
     // TODO: Look into MPI_Comm_Idup and perhaps MPI_Bcast for sending out this
     //       spawn request to all nodes efficiently and having them all handle it
     //       efficiently.
-    for (int i = 0; i < comm_size; ++i) {
+
+    // Have all swing nodes collectively spawn the cache nodes.
+    for (uint32_t i = 0; i < comm_size; ++i) {
         printf("Leader sending spawn cache msg to swing node %d\n", i);
-        MPI_Send(pair, 2, MPI_INT, i, SPAWN_CACHE, *comm);
+        MPI_Send(buf, msg_size, MPI_UINT8_T, i, SPAWN_CACHE, *comm);
     }
+}
+
+void LeaderNode::spawn_job_nodes(uint32_t job_num, std::string exec_name,
+    MPI_Comm *comm, uint16_t count) {
+
+    printf("LeaderNode sending SPAWN_JOB of size %d\n", count);
+
+    SpawnNodesTemplate *format = (SpawnNodesTemplate *)buf;
+    format->job_num = job_num;
+    format->count = count;
+    std::vector<uint32_t> vec = job_to_cache[job_num];
+    std::string result;
+    vector_to_stringlist(vec, result);
+    format->mapping_size = (uint16_t)result.size();
+    memcpy(format->mapping, result.c_str(), result.size());
+    format->exec_size = (uint8_t)exec_name.size();
+    memcpy(format->exec_name, exec_name.c_str(), exec_name.size());
+    int msg_size = sizeof(SpawnNodesTemplate);
+    printf("SPAWN_JOB msg size: %d\n", msg_size);
+
+    ASSERT_TRUE(result.size() <= MAX_MAPPING_SIZE, MPI_Abort(MPI_COMM_WORLD, 1));
+    ASSERT_TRUE(exec_name.size() <= MAX_EXEC_NAME_SIZE, MPI_Abort(MPI_COMM_WORLD, 1));
+
+    // Have the head swing node coordinate all of the cache nodes to spawn the
+    // job nodes. This could be streamlined perhaps by distributing the work
+    // amongst all of the swing nodes, but at this point the gains in runtime
+    // efficiency are miniscule because we aren't starting jobs that often.
+    printf("Leader sending spawn job msg to swing node 0\n");
+    MPI_Send(buf, msg_size, MPI_UINT8_T, 0, SPAWN_JOB, *comm);
 }

@@ -5,11 +5,12 @@
 #include <map>
 #include <mpi.h>
 #include <queue>
+#include <vector>
 #include "network_header.h"
 
 class CacheNode {
     public:
-        CacheNode();
+        CacheNode(std::vector<uint32_t>& mapping);
 
         ~CacheNode();
 
@@ -25,6 +26,9 @@ class CacheNode {
         // Struct to hold info about new messages.
         MsgInfo msg_info;
 
+        // Buffer for holding message data.
+        uint8_t *buf;
+
         // Queue of messages for the cache_node to handle.
         std::queue<MsgInfo> msg_queue;
 
@@ -32,12 +36,15 @@ class CacheNode {
         // TODO: Decide if we want to use a map or an unordered_map here
         std::map<std::string, std::string> cache;
 
+        std::map<uint32_t, CommGroup> job_to_comms;
+
+        // Allocates space for dynamic data structures within the object.
+        void allocate();
+
         // Handle the case where another node wants to connect to this node's
         // TCP socket (TODO: NOT SURE IF THIS IS FLAG IS NEEDED, NEED TO READ
         // MORE).
         void handle_connect();
-
-        void handle_coord_query_ack();
 
         void handle_put();
 
@@ -52,6 +59,8 @@ class CacheNode {
         void handle_delete();
 
         void handle_delete_ack();
+
+        void handle_spawn_job();
 
         void handle_exit();
 
@@ -71,7 +80,7 @@ class CacheNode {
         void orient();
 
         // Prints the current contents of msg_info to stdout.
-        void print_msg_info();
+        //void print_msg_info();
 
         // Creates TCP socket for Job nodes to talk with this cache node. Also
         // communicates this information with its coordinator swing node.
