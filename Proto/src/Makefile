@@ -6,6 +6,9 @@ APP_DIR = app
 build:
 	make clean
 	make -C lib build
+	make run
+
+run:
 	make -C app run
 
 .PHONY: clean
