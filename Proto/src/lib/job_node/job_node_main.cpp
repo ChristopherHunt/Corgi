@@ -1,9 +1,17 @@
+#include <stdio.h>
 #include <mpi.h>
+#include "../cache_api/cache.h"
 #include "../utils/network_header.h"
 
 int main(int argc, char **argv) {
     MPI_Init(&argc, &argv);
 
+    Cache cache(&argc, &argv);
+
+    cache.put("key", "value");    
+
+    printf("cache.put returned!\n");
+    /*
     printf("job_node argc: %d\n", argc);
     for (int i = 0; i < argc; ++i) {
         printf("argv[%d]: %s\n", i, argv[i]);
@@ -32,6 +40,7 @@ int main(int argc, char **argv) {
             local_size, parent_rank, parent_size);
 
     printf("Job node %d: team cache node: %d\n", local_rank, map_vec[local_rank]);
+    */
 
     MPI_Finalize();
 
