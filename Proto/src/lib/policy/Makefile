@@ -1,5 +1,6 @@
 CC = mpic++
 LD = mpic++
+UTILS = ../utils
 
 EXECS = main
 

@@ -1,11 +1,39 @@
+#ifndef __QUORUM__H__
+#define __QUORUM__H__
+
+#include <unordered_map>
+#include <string>
 #include "policy.h"
+#include "../node.h"
 
-class Quorum: public virtual Policy {
+enum NodeType { SWING, CACHE };
+
+class Quorum : public virtual Policy {
+    private:
+        NodeType node_type;
+        std::unordered_map<std::string, std::string> cache; 
+
     public:
-        Quorum();
+        Quorum(NodeType node_type);
 
-        ~Quorum();
+        virtual ~Quorum();
 
+        virtual void handle_put(Node *node);
+        virtual void handle_put_ack(Node *node);
+        virtual void handle_get(Node *node);
+        virtual void handle_get_ack(Node *node);
+
+        void swing_node_handle_put(Node *node, uint8_t *buf, MsgInfo *info);
+        void swing_node_handle_put_ack(Node *node, uint8_t *buf, MsgInfo *info);
+        void swing_node_handle_get(Node *node, uint8_t *buf, MsgInfo *info);
+        void swing_node_handle_get_ack(Node *node, uint8_t *buf, MsgInfo *info);
+
+        void cache_node_handle_put(Node *node, uint8_t *buf, MsgInfo *info);
+        void cache_node_handle_put_ack(Node *node, uint8_t *buf, MsgInfo *info);
+        void cache_node_handle_get(Node *node, uint8_t *buf, MsgInfo *info);
+        void cache_node_handle_get_ack(Node *node, uint8_t *buf, MsgInfo *info);
+
+        /*
         // Adds the tuple described by the key/value pair to the cache, storing
         // the copy on the local cache node as well as updating it within the
         // cache as a whole.
@@ -32,4 +60,7 @@ class Quorum: public virtual Policy {
         // system that have the tuple specified by the input key.
         virtual void get_owners(const std::string& key,
                 std::vector<uint32_t>& owners);
+        */
 };
+
+#endif

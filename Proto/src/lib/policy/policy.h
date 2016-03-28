@@ -4,14 +4,21 @@
 #include <stdint.h>
 #include <string>
 #include <vector>
+#include "../utils/network_header.h"
+#include "../node.h"
 
 class Policy {
-    protected:
+    public:
         // Make the destructor virtual so that there isn't undefined behavior
         // if someone tries to "delete" a Policy reference.
         virtual ~Policy() {};
 
-    public:
+        virtual void handle_put(Node *node) = 0;
+        virtual void handle_put_ack(Node *node) = 0;
+        virtual void handle_get(Node *node) = 0;
+        virtual void handle_get_ack(Node *node) = 0;
+
+        /*
         // Adds the tuple described by the key/value pair to the cache, storing
         // the copy on the local cache node as well as updating it within the
         // cache as a whole.
@@ -38,6 +45,7 @@ class Policy {
         // system that have the tuple specified by the input key.
         virtual void get_owners(const std::string& key,
             std::vector<uint32_t>& owners) = 0;
+        */
 };
 
 #endif
