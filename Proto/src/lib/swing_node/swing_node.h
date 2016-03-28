@@ -1,27 +1,35 @@
-#ifndef __CACHE__NODE__H__
-#define __CACHE__NODE__H__
+#ifndef __SWING__NODE__H__
+#define __SWING__NODE__H__
 
 #include <iostream>
 #include <map>
 #include <mpi.h>
-#include <queue>
+#include <deque>
 #include <vector>
-#include "network_header.h"
+#include "../utils/network_header.h"
 
-class CacheNode {
+class SwingNode {
     public:
-        CacheNode(std::vector<uint32_t>& mapping);
+        SwingNode();
 
-        ~CacheNode();
+        ~SwingNode();
 
     private:
         MPI_Status status;      // Status structure for checking communications.
         MPI_Comm parent_comm;   // Intercommunicator between local & parent comm
+
+        uint32_t pair[2];
+        uint32_t triple[3];
+
         int parent_size;        // Size of parent comm
         int parent_rank;        // Rank of this node in parent comm
         int local_size;         // Size of MPI_COMM_WORLD
         int local_rank;         // Rank of this node in MPI_COMM_WORLD
-        int coord_rank;         // Rank of coord swing node in parent comm.
+
+        // TODO: This is a temporary comm that is used to get things off the
+        //       ground, this will be replaced with a service that creates and
+        //       tracks unique comms.
+        MPI_Comm cache_comm;
 
         // Struct to hold info about new messages.
         MsgInfo msg_info;
@@ -29,40 +37,41 @@ class CacheNode {
         // Buffer for holding message data.
         uint8_t *buf;
 
-        // Queue of messages for the cache_node to handle.
-        std::queue<MsgInfo> msg_queue;
+        // Queue of messages for the node to handle.
+        std::deque<MsgInfo> msg_queue;
 
-        // Map of keys to values on this local node.
-        // TODO: Decide if we want to use a map or an unordered_map here
-        std::map<std::string, std::string> cache;
+        // Map of job_num to cache node communicator.
+        std::map<uint32_t, MPI_Comm> job_to_comm;
 
-        std::map<uint32_t, CommGroup> job_to_comms;
+        // Map of tuple keys to the cache node(s) which contain them.
+        // TODO: Decide if we want to use a map or an unordered_map here, as
+        //       well as a vector, set, map or unordered_map for the 2nd entry.
+        std::map<std::string, std::vector<uint32_t> > key_to_node;
 
         // Allocates space for dynamic data structures within the object.
         void allocate();
 
-        // Handle the case where another node wants to connect to this node's
-        // TCP socket (TODO: NOT SURE IF THIS IS FLAG IS NEEDED, NEED TO READ
-        // MORE).
-        void handle_connect();
+        // Defines the MPI_Datatypes needed for this node to communicate with
+        // others.
+        //void define_datatypes();
+
+        void handle_team_query();
 
         void handle_put();
 
-        void handle_put_ack();
-
         void handle_get();
-
-        void handle_get_ack();
-
-        void handle_forward();
 
         void handle_delete();
 
         void handle_delete_ack();
 
-        void handle_spawn_job();
+        void handle_forward();
 
         void handle_exit();
+
+        void handle_spawn_job();
+
+        void handle_spawn_cache();
 
         // Handles all message requests from other nodes.
         void handle_requests();
@@ -81,10 +90,6 @@ class CacheNode {
 
         // Prints the current contents of msg_info to stdout.
         //void print_msg_info();
-
-        // Creates TCP socket for Job nodes to talk with this cache node. Also
-        // communicates this information with its coordinator swing node.
-        void setup_socket();
 };
 
 #endif

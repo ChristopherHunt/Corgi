@@ -1,5 +1,5 @@
 #include <mpi.h>
-#include "network_header.h"
+#include "../utils/network_header.h"
 
 int main(int argc, char **argv) {
     MPI_Init(&argc, &argv);

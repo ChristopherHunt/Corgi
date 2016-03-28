@@ -82,4 +82,19 @@ void stringlist_to_vector(std::vector<uint32_t> &vec, std::string &result);
 void replace_commas(std::string &str);
 void remove_commas(std::vector<char> &vec);
 
+// Sends a message in a non-blocking way, but ensures that the contents of the
+// message is buffered into the network before returning. In this way it ensures
+// that the request object can be reused.
+void send_msg(const void *buf, int count, MPI_Datatype datatype, int dest,
+    int tag, MPI_Comm comm, MPI_Request *request);
+
+// Recvs a message in a blocking-way.
+void recv_msg(void *buf, int count, MPI_Datatype datatype, int source, int tag,
+             MPI_Comm comm, MPI_Status *status);
+
+// Loops until the message content associated with the request object has been
+// successfully buffered into the network, at which point the request object is
+// deallocated and the call returns.
+void wait_for_send(MPI_Request *request);
+
 #endif

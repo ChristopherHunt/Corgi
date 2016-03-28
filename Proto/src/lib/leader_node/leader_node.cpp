@@ -49,7 +49,7 @@ void LeaderNode::create_test_job() {
     // TODO: Make a better way of adding mappings for coordinator nodes.
     //       Use this bandaid to get off the ground for now.
     int job_num = next_job_num++; 
-    comm_to_job[temp] = job_num; 
+    job_to_comm[job_num] = temp; 
      
     std::vector<uint32_t> temp_vec;
     temp_vec.push_back(0);
@@ -109,7 +109,7 @@ void LeaderNode::handle_requests() {
 
         while (msg_ready() == true) {
             msg_info = msg_queue.front();
-            msg_queue.pop();
+            msg_queue.pop_front();
             printf("msg_queue.size: %u\n", msg_queue.size());
 
             switch (msg_info.tag) {
@@ -143,15 +143,15 @@ void LeaderNode::handle_requests() {
 void LeaderNode::message_select() {
     int flag;
 
-    for (auto const &entry : comm_to_job) { 
-        MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, entry.first, &flag, &status);
+    for (auto const &entry : job_to_comm) { 
+        MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, entry.second, &flag, &status);
 
         if (flag == 1) {
             msg_info.tag = status.MPI_TAG; 
             msg_info.src = status.MPI_SOURCE;
-            msg_info.comm = entry.first;
+            msg_info.comm = entry.second;
             MPI_Get_count(&status, MPI_BYTE, &msg_info.count);
-            msg_queue.push(msg_info);
+            msg_queue.push_back(msg_info);
         }
     }
 }
@@ -224,11 +224,11 @@ void LeaderNode::spawn_cache_nodes(uint32_t job_num, MPI_Comm *comm, uint16_t co
     // TODO: Look into MPI_Comm_Idup and perhaps MPI_Bcast for sending out this
     //       spawn request to all nodes efficiently and having them all handle it
     //       efficiently.
-
+    MPI_Request request; 
     // Have all swing nodes collectively spawn the cache nodes.
     for (uint32_t i = 0; i < comm_size; ++i) {
         printf("Leader sending spawn cache msg to swing node %d\n", i);
-        MPI_Send(buf, msg_size, MPI_UINT8_T, i, SPAWN_CACHE, *comm);
+        send_msg(buf, msg_size, MPI_UINT8_T, i, SPAWN_CACHE, *comm, &request);
     }
 }
 
@@ -257,6 +257,7 @@ void LeaderNode::spawn_job_nodes(uint32_t job_num, std::string exec_name,
     // job nodes. This could be streamlined perhaps by distributing the work
     // amongst all of the swing nodes, but at this point the gains in runtime
     // efficiency are miniscule because we aren't starting jobs that often.
+    MPI_Request request;
     printf("Leader sending spawn job msg to swing node 0\n");
-    MPI_Send(buf, msg_size, MPI_UINT8_T, 0, SPAWN_JOB, *comm);
+    send_msg(buf, msg_size, MPI_UINT8_T, 0, SPAWN_JOB, *comm, &request);
 }

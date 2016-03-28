@@ -3,13 +3,12 @@
 
 #include <map>
 #include <mpi.h>
-#include <queue>
+#include <deque>
 #include <set>
 #include <vector>
 #include <stdint.h>
 #include <string>
-#include "network_header.h"
-#include "node.h"
+#include "../utils/network_header.h"
 
 class LeaderNode {
     public:
@@ -31,10 +30,10 @@ class LeaderNode {
         uint8_t *buf;
 
         // Queue of messages for the leader_node to handle.
-        std::queue<MsgInfo> msg_queue;
+        std::deque<MsgInfo> msg_queue;
 
-        // Map of comm -> job tag.
-        std::map<MPI_Comm, uint32_t> comm_to_job;
+        // Map of job_num to swing node communicator.
+        std::map<uint32_t, MPI_Comm> job_to_comm;
 
         // Map of job tag to map of cache node -> coord swing node.
         std::map<uint32_t, std::vector<uint32_t> > job_to_swing;

@@ -66,7 +66,7 @@ void SwingNode::handle_spawn_job() {
     print_msg_info(&msg_info);
 
     // Receive the job spawn request from the leader.
-    MPI_Recv(buf, msg_info.count, MPI_UINT8_T, msg_info.src, SPAWN_JOB,
+    recv_msg(buf, msg_info.count, MPI_UINT8_T, msg_info.src, SPAWN_JOB,
             msg_info.comm, &status);
 
     // Ensure that the message is the correct size.
@@ -82,17 +82,19 @@ void SwingNode::handle_spawn_job() {
     // There must already have been a CommsGroup entry in the job_to_comms
     // map for this job number (either from cache node creation or from cache
     // node splitting / regrouping in a previous step).
-    ASSERT_TRUE(job_to_comms.count(job_num) != 0, MPI_Abort(MPI_COMM_WORLD, 1));
-    MPI_Comm cache_comm = job_to_comms[job_num].cache;
+    ASSERT_TRUE(job_to_comm.count(job_num) != 0, MPI_Abort(MPI_COMM_WORLD, 1));
+    MPI_Comm cache_comm = job_to_comm[job_num];
 
     int comm_size;
     MPI_Comm_remote_size(cache_comm, &comm_size);
+    MPI_Request request;
 
     // Send each cache node a request to spawn a job node.
     for (int i = 0; i < comm_size; ++i) {
         printf("SwingNode %d sending spawn cache msg to cache node %d\n",
             local_rank, i);
-        MPI_Send(buf, msg_info.count, MPI_UINT8_T, i, SPAWN_JOB, cache_comm);
+        send_msg(buf, msg_info.count, MPI_UINT8_T, i, SPAWN_JOB, cache_comm,
+            &request);
     }
 }
 
@@ -101,7 +103,7 @@ void SwingNode::handle_spawn_cache() {
     printf("SwingNode %d\n", local_rank);
     print_msg_info(&msg_info);
 
-    MPI_Recv(buf, msg_info.count, MPI_UINT8_T, msg_info.src, SPAWN_CACHE,
+    recv_msg(buf, msg_info.count, MPI_UINT8_T, msg_info.src, SPAWN_CACHE,
             msg_info.comm, &status);
 
     SpawnNodesTemplate *format = (SpawnNodesTemplate *)buf;
@@ -143,16 +145,10 @@ void SwingNode::handle_spawn_cache() {
 
     // Ensure that this job does not have cache nodes already associated with
     // it.
-    ASSERT_TRUE(job_to_comms.count(job_num) == 0, MPI_Abort(MPI_COMM_WORLD, 1));
-
-    CommGroup job_comm_group;
-    job_comm_group.swing = MPI_COMM_WORLD;
-    job_comm_group.cache = temp;
-    job_comm_group.job = MPI_COMM_NULL;
+    ASSERT_TRUE(job_to_comm.count(job_num) == 0, MPI_Abort(MPI_COMM_WORLD, 1));
 
     // Update bookkeeping.
-    comm_to_job[temp] = job_num;
-    job_to_comms[job_num] = job_comm_group;
+    job_to_comm[job_num] = temp;
 
     printf("SwingNode %d spawned cache_nodes\n", local_rank);
 }
@@ -172,7 +168,7 @@ void SwingNode::handle_requests() {
 
         while (msg_ready() == true) {
             msg_info = msg_queue.front();
-            msg_queue.pop();
+            msg_queue.pop_front();
 
             switch (msg_info.tag) {
                 case PUT:
@@ -225,16 +221,7 @@ void SwingNode::handle_requests() {
 void SwingNode::message_select() {
     int flag;
 
-    MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &flag, &status);
-    if (flag == 1) {
-        msg_info.tag = status.MPI_TAG; 
-        msg_info.src = status.MPI_SOURCE;
-        msg_info.comm = MPI_COMM_WORLD;
-        MPI_Get_count(&status, MPI_BYTE, &msg_info.count);
-        msg_queue.push(msg_info);
-    }
-
-    // Check to see if any other cache nodes are attempting to talk to you.
+    // Check to see if leader is trying to talk to you.
     MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, parent_comm, &flag, &status);
 
     if (flag == 1) {
@@ -242,18 +229,29 @@ void SwingNode::message_select() {
         msg_info.src= status.MPI_SOURCE;
         msg_info.comm = parent_comm;
         MPI_Get_count(&status, MPI_BYTE, &msg_info.count);
-        msg_queue.push(msg_info);
+        msg_queue.push_back(msg_info);
     }
 
-    for (auto const &entry : comm_to_job) {
-        MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, entry.first, &flag, &status);
+    // See if any swing nodes are trying to talk to you.
+    MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &flag, &status);
+
+    if (flag == 1) {
+        msg_info.tag = status.MPI_TAG; 
+        msg_info.src = status.MPI_SOURCE;
+        msg_info.comm = MPI_COMM_WORLD;
+        MPI_Get_count(&status, MPI_BYTE, &msg_info.count);
+        msg_queue.push_back(msg_info);
+    }
+
+    for (auto const &entry : job_to_comm) {
+        MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, entry.second, &flag, &status);
 
         if (flag == 1) {
             msg_info.tag = status.MPI_TAG; 
             msg_info.src = status.MPI_SOURCE;
-            msg_info.comm = entry.first;
+            msg_info.comm = entry.second;
             MPI_Get_count(&status, MPI_BYTE, &msg_info.count);
-            msg_queue.push(msg_info);
+            msg_queue.push_back(msg_info);
         }
     }
 }

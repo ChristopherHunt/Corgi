@@ -93,7 +93,7 @@ void CacheNode::handle_requests() {
 
         while (msg_ready() == true) {
             msg_info = msg_queue.front();
-            msg_queue.pop();
+            msg_queue.pop_front();
 
             switch (msg_info.tag) {
                 case CONNECT:
@@ -152,7 +152,7 @@ void CacheNode::handle_spawn_job() {
     printf("CacheNode %d\n", local_rank);
     print_msg_info(&msg_info);
 
-    MPI_Recv(buf, msg_info.count, MPI_UINT8_T, msg_info.src, SPAWN_JOB,
+    recv_msg(buf, msg_info.count, MPI_UINT8_T, msg_info.src, SPAWN_JOB,
             msg_info.comm, &status);
 
     ASSERT_TRUE(msg_info.count == sizeof(SpawnNodesTemplate),
@@ -217,7 +217,7 @@ void CacheNode::message_select() {
         msg_info.src = status.MPI_SOURCE;
         msg_info.comm = MPI_COMM_WORLD;
         MPI_Get_count(&status, MPI_BYTE, &msg_info.count);
-        msg_queue.push(msg_info);
+        msg_queue.push_back(msg_info);
     }
 
     // Check to see if any other cache nodes are attempting to talk to you.
@@ -228,7 +228,7 @@ void CacheNode::message_select() {
         msg_info.src= status.MPI_SOURCE;
         msg_info.comm = parent_comm;
         MPI_Get_count(&status, MPI_BYTE, &msg_info.count);
-        msg_queue.push(msg_info);
+        msg_queue.push_back(msg_info);
     }
 
     // TODO: Handle messages from JOB node! (maybe not if we go and make cache

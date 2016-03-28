@@ -104,3 +104,23 @@ void replace_commas(std::string &str) {
 void remove_commas(std::vector<char> &vec) {
     vec.erase(std::remove(vec.begin(), vec.end(), ','), vec.end());
 }
+
+void send_msg(const void *buf, int count, MPI_Datatype datatype, int dest,
+     int tag, MPI_Comm comm, MPI_Request *request) {
+    MPI_Isend(buf, count, datatype, dest, tag, comm, request);
+    wait_for_send(request);
+}
+
+void recv_msg(void *buf, int count, MPI_Datatype datatype, int source, int tag,
+             MPI_Comm comm, MPI_Status *status) {
+    MPI_Recv(buf, count, datatype, source, tag, comm, status);
+}
+
+void wait_for_send(MPI_Request *request) {
+    int flag = 0;
+    MPI_Status status;
+    while (flag == 0) {
+        MPI_Test(request, &flag, &status);
+        printf("wait_for_send looping!\n");
+    }
+}
