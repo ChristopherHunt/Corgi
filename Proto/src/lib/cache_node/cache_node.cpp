@@ -1,8 +1,13 @@
+#include <stdlib.h>
 #include "cache_node.h"
 
 // TODO: NEED TO ADD FUNCTIONALITY TO ADD JOBS WITHOUT ADDING CACHE NODES.
 
 CacheNode::CacheNode(std::vector<uint32_t>& mapping) {
+    // Set the policy for consistency and latency.
+    NodeType node_type = CACHE;
+    policy = new Quorum(node_type);
+
     // Determine where this node is in the system.
     orient();
 
@@ -14,15 +19,13 @@ CacheNode::CacheNode(std::vector<uint32_t>& mapping) {
     // Allocates data structures within this object.
     allocate();
 
-    // Setup the socket to communicate with job processes.
-    //setup_socket();
-
     // Handle all requests sent to this cache node.
     handle_requests();
 }
 
 CacheNode::~CacheNode() {
     free(buf);
+    delete(policy);
 }
 
 void CacheNode::allocate() {
@@ -40,24 +43,32 @@ void CacheNode::handle_put() {
     printf("===== PUT =====\n");
     printf("CacheNode %d\n", local_rank);
     print_msg_info(&msg_info);
+
+    policy->handle_put(this);
 }
 
 void CacheNode::handle_put_ack() {
     printf("===== PUT_ACK =====\n");
     printf("CacheNode %d\n", local_rank);
     print_msg_info(&msg_info);
+
+    policy->handle_put_ack(this);
 }
 
 void CacheNode::handle_get() {
     printf("===== GET =====\n");
     printf("CacheNode %d\n", local_rank);
     print_msg_info(&msg_info);
+
+    policy->handle_get(this);
 }
 
 void CacheNode::handle_get_ack() {
     printf("===== GET_ACK =====\n");
     printf("CacheNode %d\n", local_rank);
     print_msg_info(&msg_info);
+
+    policy->handle_get_ack(this);
 }
 
 void CacheNode::handle_forward() {
@@ -184,17 +195,22 @@ void CacheNode::handle_spawn_job() {
     printf("CacheNode %d exec_size: %d\n", local_rank, exec_size);
     printf("CacheNode %d exec_name: %s\n", local_rank, exec_name.c_str());
 
+    std::stringstream ss;
+    ss << job_num;
+    char *job_num_array = (char *)ss.str().c_str();
+
     // Create an array that maps each job node to its corresponding cache node.
-    char *argv[2];
-    argv[0] = &mapping[0];
-    argv[1] = NULL;
+    char *argv[3];
+    argv[0] = job_num_array;
+    argv[1] = &mapping[0];
+    argv[2] = NULL;
 
     MPI_Comm comm;
     MPI_Comm_dup(MPI_COMM_WORLD, &comm);
 
     // Spawn the job nodes with the appropriate argv mapping.
     MPI_Comm_spawn(exec_name.c_str(), argv, node_count, MPI_INFO_NULL,
-        0, comm, &comm, MPI_ERRCODES_IGNORE);
+            0, comm, &comm, MPI_ERRCODES_IGNORE);
 
     // Update bookkeeping.
     CommGroup job_comm_group;
@@ -209,7 +225,7 @@ void CacheNode::handle_spawn_job() {
 void CacheNode::message_select() {
     int flag;
 
-    // Check to see if any other cache nodes are attempting to talk to you.
+    // Check to see if any cache nodes are attempting to talk to you.
     MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &flag, &status);
 
     if (flag == 1) {
@@ -220,7 +236,7 @@ void CacheNode::message_select() {
         msg_queue.push_back(msg_info);
     }
 
-    // Check to see if any other cache nodes are attempting to talk to you.
+    // Check to see if any swing nodes are attempting to talk to you.
     MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, parent_comm, &flag, &status);
 
     if (flag == 1) {
@@ -231,8 +247,22 @@ void CacheNode::message_select() {
         msg_queue.push_back(msg_info);
     }
 
-    // TODO: Handle messages from JOB node! (maybe not if we go and make cache
-    // nodes a thread process running inside the job processes).
+    // Check to see if any job nodes are attempting to talk to you.
+    for (auto const &entry : job_to_comms) {
+        ASSERT_TRUE(entry.second.job != MPI_COMM_NULL,
+            MPI_Abort(MPI_COMM_WORLD, 1));
+
+        MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, entry.second.job, &flag,
+            &status);
+
+        if (flag == 1) {
+            msg_info.tag = status.MPI_TAG; 
+            msg_info.src = status.MPI_SOURCE;
+            msg_info.comm = entry.second.job;
+            MPI_Get_count(&status, MPI_BYTE, &msg_info.count);
+            msg_queue.push_back(msg_info);
+        }
+    }
 }
 
 bool CacheNode::msg_ready() {
@@ -276,6 +306,3 @@ void CacheNode::orient() {
    }
    }
    */
-
-void CacheNode::setup_socket() {
-}
