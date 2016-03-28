@@ -1,7 +1,7 @@
 #ifndef __LEADER__NODE__H__
 #define __LEADER__NODE__H__
 
-#include <map>
+#include <unordered_map>
 #include <mpi.h>
 #include <deque>
 #include <set>
@@ -33,13 +33,13 @@ class LeaderNode {
         std::deque<MsgInfo> msg_queue;
 
         // Map of job_num to swing node communicator.
-        std::map<uint32_t, MPI_Comm> job_to_comm;
+        std::unordered_map<uint32_t, MPI_Comm> job_to_comm;
 
         // Map of job tag to map of cache node -> coord swing node.
-        std::map<uint32_t, std::vector<uint32_t> > job_to_swing;
+        std::unordered_map<uint32_t, std::vector<uint32_t> > job_to_swing;
 
         // Map of job tag to team node pairings (job node -> cache_node).
-        std::map<uint32_t, std::vector<uint32_t> > job_to_cache;
+        std::unordered_map<uint32_t, std::vector<uint32_t> > job_to_cache;
 
         // Allocates space for dynamic data structures within the object.
         void allocate();
