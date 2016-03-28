@@ -107,6 +107,12 @@ void remove_commas(std::vector<char> &vec) {
 
 void send_msg(const void *buf, int count, MPI_Datatype datatype, int dest,
      int tag, MPI_Comm comm, MPI_Request *request) {
+    printf("send_msg:\n");
+    printf("\ttag: ");
+    print_msg_tag_handle((MsgTag)tag);
+    printf("\n");
+    printf("\tdest: %d\n", dest);
+
     MPI_Isend(buf, count, datatype, dest, tag, comm, request);
     wait_for_send(request);
 }
@@ -121,6 +127,6 @@ void wait_for_send(MPI_Request *request) {
     MPI_Status status;
     while (flag == 0) {
         MPI_Test(request, &flag, &status);
-        printf("wait_for_send looping!\n");
+        //printf("wait_for_send looping!\n");
     }
 }

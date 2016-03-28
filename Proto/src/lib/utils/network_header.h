@@ -11,6 +11,8 @@
 
 #define INITIAL_BUF_SIZE 65535
 #define MAX_MAPPING_SIZE 32768
+#define MAX_KEY_SIZE 4096
+#define MAX_VALUE_SIZE 32768
 #define MAX_EXEC_NAME_SIZE 255
 
 #define ASSERT_TRUE(expression, todo) {\
@@ -57,6 +59,22 @@ typedef struct SpawnNodesTemplate {
     uint8_t exec_size;
     uint8_t exec_name[MAX_EXEC_NAME_SIZE];
 } __attribute__((packed)) SpawnNodesTemplate;
+
+typedef struct PutTemplate {
+    uint32_t job_num;
+    uint32_t job_node;
+    uint32_t key_size;
+    uint8_t key[MAX_KEY_SIZE];
+    uint32_t value_size;
+    uint8_t value[MAX_VALUE_SIZE];
+} __attribute__((packed)) PutTemplate;
+
+typedef struct PutAckTemplate {
+    uint32_t job_num;
+    uint32_t job_node;
+    uint32_t key_size;
+    uint8_t key[MAX_KEY_SIZE];
+} __attribute__((packed)) PutAckTemplate;
 
 // Struct to keep track of which communicators are associated with a given job
 // number.
