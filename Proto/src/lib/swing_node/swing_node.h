@@ -2,21 +2,24 @@
 #define __SWING__NODE__H__
 
 #include <iostream>
-#include <map>
+#include <unordered_map>
 #include <mpi.h>
 #include <deque>
 #include <vector>
+#include "../policy/policy.h"
+#include "../policy/quorum.h"
 #include "../utils/network_header.h"
+#include "../node.h"
 
-class SwingNode {
+class SwingNode : public virtual Node {
     public:
         SwingNode();
 
         ~SwingNode();
 
     private:
-        MPI_Status status;      // Status structure for checking communications.
-        MPI_Comm parent_comm;   // Intercommunicator between local & parent comm
+        //MPI_Status status;      // Status structure for checking communications.
+        //MPI_Comm parent_comm;   // Intercommunicator between local & parent comm
 
         uint32_t pair[2];
         uint32_t triple[3];
@@ -31,22 +34,25 @@ class SwingNode {
         //       tracks unique comms.
         MPI_Comm cache_comm;
 
+        friend class Policy;
+        Policy *policy;
+
         // Struct to hold info about new messages.
-        MsgInfo msg_info;
+        //MsgInfo msg_info;
 
         // Buffer for holding message data.
-        uint8_t *buf;
+        //uint8_t *buf;
 
         // Queue of messages for the node to handle.
         std::deque<MsgInfo> msg_queue;
 
         // Map of job_num to cache node communicator.
-        std::map<uint32_t, MPI_Comm> job_to_comm;
+        std::unordered_map<uint32_t, MPI_Comm> job_to_comm;
 
         // Map of tuple keys to the cache node(s) which contain them.
         // TODO: Decide if we want to use a map or an unordered_map here, as
         //       well as a vector, set, map or unordered_map for the 2nd entry.
-        std::map<std::string, std::vector<uint32_t> > key_to_node;
+        std::unordered_map<std::string, std::vector<uint32_t> > key_to_node;
 
         // Allocates space for dynamic data structures within the object.
         void allocate();
@@ -59,7 +65,11 @@ class SwingNode {
 
         void handle_put();
 
+        void handle_put_ack();
+
         void handle_get();
+
+        void handle_get_ack();
 
         void handle_delete();
 

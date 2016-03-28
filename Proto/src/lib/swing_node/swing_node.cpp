@@ -2,6 +2,10 @@
 #include "swing_node.h"
 
 SwingNode::SwingNode() {
+    // Set the policy for consistency and latency.
+    NodeType node_type = SWING; 
+    policy = new Quorum(node_type);
+
     // Determine where this node is in the system.
     orient();
 
@@ -17,6 +21,7 @@ SwingNode::SwingNode() {
 
 SwingNode::~SwingNode() {
     free(buf);
+    delete(policy);
 }
 
 void SwingNode::allocate() {
@@ -28,12 +33,32 @@ void SwingNode::handle_put() {
     printf("===== PUT =====\n");
     printf("SwingNode %d\n", local_rank);
     print_msg_info(&msg_info);
+
+    policy->handle_put(this);
+}
+
+void SwingNode::handle_put_ack() {
+    printf("===== PUT ACK =====\n");
+    printf("SwingNode %d\n", local_rank);
+    print_msg_info(&msg_info);
+
+    policy->handle_put_ack(this);
 }
 
 void SwingNode::handle_get() {
     printf("===== GET =====\n");
     printf("SwingNode %d\n", local_rank);
     print_msg_info(&msg_info);
+
+    policy->handle_get(this);
+}
+
+void SwingNode::handle_get_ack() {
+    printf("===== GET ACK =====\n");
+    printf("SwingNode %d\n", local_rank);
+    print_msg_info(&msg_info);
+
+    policy->handle_get_ack(this);
 }
 
 void SwingNode::handle_delete() {
@@ -175,8 +200,16 @@ void SwingNode::handle_requests() {
                     handle_put();
                     break;
 
+                case PUT_ACK:
+                    handle_put_ack();
+                    break;
+
                 case GET:
                     handle_get();
+                    break;
+
+                case GET_ACK:
+                    handle_get_ack();
                     break;
 
                 case DELETE:
