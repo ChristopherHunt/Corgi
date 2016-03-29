@@ -26,23 +26,58 @@ void Cache::put(const std::string& key, const std::string& value) {
     memcpy(format->key, key.c_str(), key.size());
     format->value_size = value.size();
     memcpy(format->value, value.c_str(), value.size());
+    get_timestamp(&(format->timestamp));
 
     MPI_Request request;
     MPI_Status status;
     
-    printf("Job %d Rank %d calling put!\n", job_num, local_rank);
+    printf("Job %d Rank %d calling put on %s/%s!\n", job_num, local_rank, key.c_str(), value.c_str());
     send_msg(buf, sizeof(PutTemplate), MPI_UINT8_T, coord_rank, PUT,
         parent_comm, &request);
 
-    // TODO: FIX THIS ISSUE -- WE COULD HAVE 2 MISALIGNED PUT_ACK RECV'S HERE.
-    // ALSO, THIS TIES UP THE CACHE NODE NEEDLESSLY, SO SHOULD PROBABLY QUEUE UP
-    // THE BLOCKING PUT_ACK REQUESTS AND ACT ON THEM AS THEY COME IN.
+    // TODO: FIX THIS ISSUE -- WE COULD HAVE 2 MISALIGNED PUT_ACK RECV'S HERE
+    // WHEN WE MOVE TO NON-BLOCKING PUTS. ALSO, THIS TIES UP THE CACHE NODE
+    // NEEDLESSLY, SO SHOULD PROBABLY QUEUE UP THE BLOCKING PUT_ACK REQUESTS AND
+    // ACT ON THEM AS THEY COME IN.
     recv_msg(buf, sizeof(PutAckTemplate), MPI_UINT8_T, coord_rank, PUT_ACK,
         parent_comm, &status);
 }
 
-void Cache::get(const std::string& key, std::string& value) {
 
+// Job asks cache for the value associated with a key
+// Cache looks to see if it has the key
+//  cache node asks swing node to gather the required number of copies from
+//  other nodes
+// Selected cache nodes send their copy to the asking cache node
+// Asking cache node resolves any conflicts using timestamps
+// Asking cache node updates its store
+// Asking cache node return to the calling job node
+void Cache::get(const std::string& key, std::string& value) {
+    GetTemplate *format = (GetTemplate *)buf;
+    format->job_num = job_num;
+    format->job_node = local_rank;
+    format->key_size = key.size();
+    memcpy(format->key, key.c_str(), key.size());
+    get_timestamp(&(format->timestamp));
+
+    MPI_Request request;
+    MPI_Status status;
+    
+    printf("Job %d Rank %d calling get on key %s!\n", job_num, local_rank, key.c_str());
+    send_msg(buf, sizeof(GetTemplate), MPI_UINT8_T, coord_rank, GET,
+        parent_comm, &request);
+
+    // TODO: FIX THIS ISSUE -- WE COULD HAVE 2 MISALIGNED GET_ACK RECV'S HERE
+    // WHEN WE GO TO NON-BLOCKING GET. ALSO, THIS TIES UP THE CACHE NODE
+    // NEEDLESSLY, SO SHOULD PROBABLY QUEUE UP THE BLOCKING GET_ACK REQUESTS AND
+    // ACT ON THEM AS THEY COME IN.
+    recv_msg(buf, sizeof(GetAckTemplate), MPI_UINT8_T, coord_rank, GET_ACK,
+        parent_comm, &status);
+
+    GetAckTemplate *temp = (GetAckTemplate *)buf;
+
+    value.clear();
+    value.assign((const char *)temp->value, temp->value_size);
 }
 
 int32_t Cache::push(const std::string& key, uint32_t node_id) {
