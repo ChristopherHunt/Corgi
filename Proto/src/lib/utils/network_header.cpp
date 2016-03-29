@@ -21,9 +21,6 @@ void print_msg_info(MsgInfo *msg_info) {
 
 void print_msg_tag_handle(MsgTag tag) {
     switch (tag) {
-        case CONNECT:
-            printf("CONNECT");
-            break;
         case PUT:
             printf("PUT");
             break;
@@ -36,23 +33,23 @@ void print_msg_tag_handle(MsgTag tag) {
         case GET_ACK:
             printf("GET_ACK");
             break;
-        case FORWARD:
-            printf("FORWARD");
+        case PUSH:
+            printf("PUSH");
             break;
-        case DELETE:
-            printf("DELETE");
+        case PUSH_ACK:
+            printf("PUSH_ACK");
             break;
-        case DELETE_ACK:
-            printf("DELETE_ACK");
+        case DROP:
+            printf("DROP");
             break;
-        case COORD_QUERY:
-            printf("COORD_QUERY");
+        case DROP_ACK:
+            printf("DROP_ACK");
             break;
-        case COORD_QUERY_ACK:
-            printf("COORD_QUERY_ACK");
+        case REF:
+            printf("REF");
             break;
-        case TEAM_QUERY:
-            printf("TEAM_QUERY");
+        case REF_ACK:
+            printf("REF_ACK");
             break;
         case SPAWN_JOB:
             printf("SPAWN_JOB");
@@ -129,4 +126,9 @@ void wait_for_send(MPI_Request *request) {
         MPI_Test(request, &flag, &status);
         //printf("wait_for_send looping!\n");
     }
+}
+
+void get_timestamp(uint64_t *timestamp) {
+    *timestamp = (uint64_t)(std::chrono::duration_cast<std::chrono::microseconds>(
+        std::chrono::system_clock::now().time_since_epoch()).count());
 }

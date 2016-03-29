@@ -1,13 +1,14 @@
 #ifndef __NETWORK__HEADER__H__
 #define __NETWORK__HEADER__H__
 
+#include <mpi.h>
 #include <stdint.h>
-#include <algorithm>
 #include <stdio.h>
+#include <algorithm>
+#include <chrono>
 #include <iostream>
 #include <sstream>
 #include <vector>
-#include <mpi.h>
 
 #define INITIAL_BUF_SIZE 65535
 #define MAX_MAPPING_SIZE 32768
@@ -16,18 +17,17 @@
 #define MAX_EXEC_NAME_SIZE 255
 
 #define ASSERT_TRUE(expression, todo) {\
-   if (!(expression)) {\
-      perror("\n!!! ASSERT FAILED !!!\n\tError ");\
-      fprintf(stderr, "\tFile : \"%s\"\n\tFunction : \"%s\"\n\t"\
-            "Line : %d\n\n", __FILE__, __func__, __LINE__);\
-      todo;\
-   }\
+    if (!(expression)) {\
+        perror("\n!!! ASSERT FAILED !!!\n\tError ");\
+        fprintf(stderr, "\tFile : \"%s\"\n\tFunction : \"%s\"\n\t"\
+                "Line : %d\n\n", __FILE__, __func__, __LINE__);\
+        todo;\
+    }\
 }
 
 // Enums for different tags (message flags) between a CacheNode and the sender.
-enum MsgTag { CONNECT, PUT, PUT_ACK, GET, GET_ACK, FORWARD, DELETE,
-              DELETE_ACK, COORD_QUERY, COORD_QUERY_ACK, TEAM_QUERY,
-              SPAWN_JOB, SPAWN_CACHE, EXIT };
+enum MsgTag { PUT, PUT_ACK, GET, GET_ACK, PUSH, PUSH_ACK, DROP, DROP_ACK,
+              REF, REF_ACK, SPAWN_JOB, SPAWN_CACHE, EXIT };
 
 // Struct to keep track of messages from other nodes which are waiting to be
 // tended to.
@@ -67,6 +67,7 @@ typedef struct PutTemplate {
     uint8_t key[MAX_KEY_SIZE];
     uint32_t value_size;
     uint8_t value[MAX_VALUE_SIZE];
+    uint64_t timestamp;
 } __attribute__((packed)) PutTemplate;
 
 typedef struct PutAckTemplate {
@@ -75,6 +76,32 @@ typedef struct PutAckTemplate {
     uint32_t key_size;
     uint8_t key[MAX_KEY_SIZE];
 } __attribute__((packed)) PutAckTemplate;
+
+typedef struct GetTemplate {
+    uint32_t job_num;
+    uint32_t job_node;
+    uint32_t key_size;
+    uint8_t key[MAX_KEY_SIZE];
+    uint64_t timestamp;
+} __attribute__((packed)) GetTemplate;
+
+typedef struct GetAckTemplate {
+    uint32_t job_num;
+    uint32_t job_node;
+    uint32_t key_size;
+    uint8_t key[MAX_KEY_SIZE];
+    uint32_t value_size;
+    uint8_t value[MAX_VALUE_SIZE];
+    uint64_t timestamp;
+} __attribute__((packed)) GetAckTemplate;
+
+typedef struct CensusTemplate {
+    uint32_t job_num;
+    uint32_t job_node;
+    uint32_t key_size;
+    uint8_t key[MAX_KEY_SIZE];
+    uint32_t votes_req;
+} __attribute__((packed)) CensusTemplate;
 
 // Struct to keep track of which communicators are associated with a given job
 // number.
@@ -86,6 +113,25 @@ typedef struct CommGroup {
     MPI_Comm cache;
     MPI_Comm job;
 } __attribute__((packed)) Comms;
+
+typedef struct JobNodeID {
+    uint32_t job_num;
+    uint32_t job_node;
+
+    bool operator== (const JobNodeID& other) {
+        return this->job_num == other.job_num &&
+            this->job_node == other.job_node;
+    }
+} __attribute__((packed)) JobNodeID;
+
+typedef struct Parcel {
+    uint64_t timestamp;
+    std::string value;
+
+    bool operator< (const Parcel& other) {
+        return this->timestamp < other.timestamp;
+    }
+} __attribute((packed)) Parcel;
 
 void print_msg_info(MsgInfo *msg_info);
 
@@ -104,15 +150,17 @@ void remove_commas(std::vector<char> &vec);
 // message is buffered into the network before returning. In this way it ensures
 // that the request object can be reused.
 void send_msg(const void *buf, int count, MPI_Datatype datatype, int dest,
-    int tag, MPI_Comm comm, MPI_Request *request);
+        int tag, MPI_Comm comm, MPI_Request *request);
 
 // Recvs a message in a blocking-way.
 void recv_msg(void *buf, int count, MPI_Datatype datatype, int source, int tag,
-             MPI_Comm comm, MPI_Status *status);
+        MPI_Comm comm, MPI_Status *status);
 
 // Loops until the message content associated with the request object has been
 // successfully buffered into the network, at which point the request object is
 // deallocated and the call returns.
 void wait_for_send(MPI_Request *request);
+
+void get_timestamp(uint64_t *timestamp);
 
 #endif
