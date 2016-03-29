@@ -76,12 +76,6 @@ void LeaderNode::create_test_job() {
     spawn_job_nodes(job_num, "job_node_main", &temp, 4);
 }
 
-void LeaderNode::handle_team_query() {
-    printf("===== TEAM QUERY =====\n");
-    printf("LeaderNode %d\n", local_rank);
-    print_msg_info(&msg_info);
-}
-
 void LeaderNode::handle_spawn_job() {
     printf("===== SPAWN JOB =====\n");
     printf("LeaderNode %d\n", local_rank);
@@ -113,10 +107,6 @@ void LeaderNode::handle_requests() {
             printf("msg_queue.size: %u\n", msg_queue.size());
 
             switch (msg_info.tag) {
-                case TEAM_QUERY:
-                    handle_team_query();
-                    break;
-
                 case SPAWN_JOB:
                     handle_spawn_job();
                     break;

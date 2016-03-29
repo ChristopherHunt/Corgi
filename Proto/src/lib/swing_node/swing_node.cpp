@@ -4,7 +4,7 @@
 SwingNode::SwingNode() {
     // Set the policy for consistency and latency.
     NodeType node_type = SWING; 
-    policy = new Quorum(node_type);
+    policy = new Quorum(this, node_type);
 
     // Determine where this node is in the system.
     orient();
@@ -34,7 +34,7 @@ void SwingNode::handle_put() {
     printf("SwingNode %d\n", local_rank);
     print_msg_info(&msg_info);
 
-    policy->handle_put(this);
+    policy->handle_put();
 }
 
 void SwingNode::handle_put_ack() {
@@ -42,7 +42,7 @@ void SwingNode::handle_put_ack() {
     printf("SwingNode %d\n", local_rank);
     print_msg_info(&msg_info);
 
-    policy->handle_put_ack(this);
+    policy->handle_put_ack();
 }
 
 void SwingNode::handle_get() {
@@ -50,7 +50,7 @@ void SwingNode::handle_get() {
     printf("SwingNode %d\n", local_rank);
     print_msg_info(&msg_info);
 
-    policy->handle_get(this);
+    policy->handle_get();
 }
 
 void SwingNode::handle_get_ack() {
@@ -58,23 +58,41 @@ void SwingNode::handle_get_ack() {
     printf("SwingNode %d\n", local_rank);
     print_msg_info(&msg_info);
 
-    policy->handle_get_ack(this);
+    policy->handle_get_ack();
 }
 
-void SwingNode::handle_delete() {
-    printf("===== DELETE =====\n");
+void SwingNode::handle_push() {
+    printf("===== PUSH =====\n");
     printf("SwingNode %d\n", local_rank);
     print_msg_info(&msg_info);
 }
 
-void SwingNode::handle_forward() {
-    printf("===== FORWARD =====\n");
+void SwingNode::handle_push_ack() {
+    printf("===== PUSH_ACK =====\n");
     printf("SwingNode %d\n", local_rank);
     print_msg_info(&msg_info);
 }
 
-void SwingNode::handle_delete_ack() {
-    printf("===== DELETE_ACK =====\n");
+void SwingNode::handle_drop() {
+    printf("===== DROP =====\n");
+    printf("SwingNode %d\n", local_rank);
+    print_msg_info(&msg_info);
+}
+
+void SwingNode::handle_drop_ack() {
+    printf("===== DROP_ACK =====\n");
+    printf("SwingNode %d\n", local_rank);
+    print_msg_info(&msg_info);
+}
+
+void SwingNode::handle_ref() {
+    printf("===== REF =====\n");
+    printf("SwingNode %d\n", local_rank);
+    print_msg_info(&msg_info);
+}
+
+void SwingNode::handle_ref_ack() {
+    printf("===== REF_ACK =====\n");
     printf("SwingNode %d\n", local_rank);
     print_msg_info(&msg_info);
 }
@@ -212,20 +230,28 @@ void SwingNode::handle_requests() {
                     handle_get_ack();
                     break;
 
-                case DELETE:
-                    handle_delete();
+                case PUSH:
+                    handle_push();
                     break;
 
-                case DELETE_ACK:
-                    handle_delete_ack();
+                case PUSH_ACK:
+                    handle_push_ack();
                     break;
 
-                case FORWARD:
-                    handle_forward();
+                case DROP:
+                    handle_drop();
                     break;
 
-                case TEAM_QUERY:
-                    handle_team_query();
+                case DROP_ACK:
+                    handle_drop_ack();
+                    break;
+
+                case REF:
+                    handle_ref();
+                    break;
+
+                case REF_ACK:
+                    handle_ref_ack();
                     break;
 
                 case SPAWN_JOB:

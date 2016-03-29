@@ -6,7 +6,7 @@
 CacheNode::CacheNode(std::vector<uint32_t>& mapping) {
     // Set the policy for consistency and latency.
     NodeType node_type = CACHE;
-    policy = new Quorum(node_type);
+    policy = new Quorum(this, node_type);
 
     // Determine where this node is in the system.
     orient();
@@ -33,18 +33,12 @@ void CacheNode::allocate() {
     ASSERT_TRUE(buf != NULL, MPI_Abort(MPI_COMM_WORLD, 1));
 }
 
-void CacheNode::handle_connect() {
-    printf("===== CONNECT =====\n");
-    printf("CacheNode %d\n", local_rank);
-    print_msg_info(&msg_info);
-}
-
 void CacheNode::handle_put() {
     printf("===== PUT =====\n");
     printf("CacheNode %d\n", local_rank);
     print_msg_info(&msg_info);
 
-    policy->handle_put(this);
+    policy->handle_put();
 }
 
 void CacheNode::handle_put_ack() {
@@ -52,7 +46,7 @@ void CacheNode::handle_put_ack() {
     printf("CacheNode %d\n", local_rank);
     print_msg_info(&msg_info);
 
-    policy->handle_put_ack(this);
+    policy->handle_put_ack();
 }
 
 void CacheNode::handle_get() {
@@ -60,7 +54,7 @@ void CacheNode::handle_get() {
     printf("CacheNode %d\n", local_rank);
     print_msg_info(&msg_info);
 
-    policy->handle_get(this);
+    policy->handle_get();
 }
 
 void CacheNode::handle_get_ack() {
@@ -68,23 +62,41 @@ void CacheNode::handle_get_ack() {
     printf("CacheNode %d\n", local_rank);
     print_msg_info(&msg_info);
 
-    policy->handle_get_ack(this);
+    policy->handle_get_ack();
 }
 
-void CacheNode::handle_forward() {
-    printf("===== FORWARD =====\n");
+void CacheNode::handle_push() {
+    printf("===== PUSH =====\n");
     printf("CacheNode %d\n", local_rank);
     print_msg_info(&msg_info);
 }
 
-void CacheNode::handle_delete() {
-    printf("===== DELETE =====\n");
+void CacheNode::handle_push_ack() {
+    printf("===== PUSH_ACK =====\n");
     printf("CacheNode %d\n", local_rank);
     print_msg_info(&msg_info);
 }
 
-void CacheNode::handle_delete_ack() {
-    printf("===== DELETE_ACK =====\n");
+void CacheNode::handle_drop() {
+    printf("===== DROP =====\n");
+    printf("CacheNode %d\n", local_rank);
+    print_msg_info(&msg_info);
+}
+
+void CacheNode::handle_drop_ack() {
+    printf("===== DROP_ACK =====\n");
+    printf("CacheNode %d\n", local_rank);
+    print_msg_info(&msg_info);
+}
+
+void CacheNode::handle_ref() {
+    printf("===== REF =====\n");
+    printf("CacheNode %d\n", local_rank);
+    print_msg_info(&msg_info);
+}
+
+void CacheNode::handle_ref_ack() {
+    printf("===== REF_ACK =====\n");
     printf("CacheNode %d\n", local_rank);
     print_msg_info(&msg_info);
 }
@@ -107,10 +119,6 @@ void CacheNode::handle_requests() {
             msg_queue.pop_front();
 
             switch (msg_info.tag) {
-                case CONNECT:
-                    handle_connect();
-                    break;
-
                 case PUT:
                     handle_put();
                     break;
@@ -127,16 +135,28 @@ void CacheNode::handle_requests() {
                     handle_get_ack();
                     break;
 
-                case FORWARD:
-                    handle_forward();
+                case PUSH:
+                    handle_push();
                     break;
 
-                case DELETE:
-                    handle_delete();
+                case PUSH_ACK:
+                    handle_push_ack();
                     break;
 
-                case DELETE_ACK:
-                    handle_delete_ack();
+                case DROP:
+                    handle_drop();
+                    break;
+
+                case DROP_ACK:
+                    handle_drop_ack();
+                    break;
+
+                case REF:
+                    handle_ref();
+                    break;
+
+                case REF_ACK:
+                    handle_ref_ack();
                     break;
 
                 case SPAWN_JOB:

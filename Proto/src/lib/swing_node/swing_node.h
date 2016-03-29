@@ -24,10 +24,10 @@ class SwingNode : public virtual Node {
         uint32_t pair[2];
         uint32_t triple[3];
 
-        int parent_size;        // Size of parent comm
-        int parent_rank;        // Rank of this node in parent comm
-        int local_size;         // Size of MPI_COMM_WORLD
-        int local_rank;         // Rank of this node in MPI_COMM_WORLD
+        //int parent_size;        // Size of parent comm
+        //int parent_rank;        // Rank of this node in parent comm
+        //int local_size;         // Size of MPI_COMM_WORLD
+        //int local_rank;         // Rank of this node in MPI_COMM_WORLD
 
         // TODO: This is a temporary comm that is used to get things off the
         //       ground, this will be replaced with a service that creates and
@@ -49,11 +49,6 @@ class SwingNode : public virtual Node {
         // Map of job_num to cache node communicator.
         std::unordered_map<uint32_t, MPI_Comm> job_to_comm;
 
-        // Map of tuple keys to the cache node(s) which contain them.
-        // TODO: Decide if we want to use a map or an unordered_map here, as
-        //       well as a vector, set, map or unordered_map for the 2nd entry.
-        std::unordered_map<std::string, std::vector<uint32_t> > key_to_node;
-
         // Allocates space for dynamic data structures within the object.
         void allocate();
 
@@ -71,11 +66,17 @@ class SwingNode : public virtual Node {
 
         void handle_get_ack();
 
-        void handle_delete();
+        void handle_ref();
 
-        void handle_delete_ack();
+        void handle_ref_ack();
 
-        void handle_forward();
+        void handle_drop();
+
+        void handle_drop_ack();
+
+        void handle_push();
+
+        void handle_push_ack();
 
         void handle_exit();
 

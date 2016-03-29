@@ -11,6 +11,13 @@ int main(int argc, char **argv) {
     cache.put("key", "value");    
 
     printf("cache.put returned!\n");
+
+    MPI_Barrier(MPI_COMM_WORLD);
+
+    std::string value;
+    cache.get("key", value);
+
+    printf("cache.get -> %s/%s\n", "key", value.c_str());
     /*
     printf("job_node argc: %d\n", argc);
     for (int i = 0; i < argc; ++i) {

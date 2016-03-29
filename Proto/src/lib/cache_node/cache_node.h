@@ -20,10 +20,10 @@ class CacheNode : public virtual Node {
     private:
         //MPI_Status status;      // Status structure for checking communications.
         //MPI_Comm parent_comm;   // Intercommunicator between local & parent comm
-        int parent_size;        // Size of parent comm
-        int parent_rank;        // Rank of this node in parent comm
-        int local_size;         // Size of MPI_COMM_WORLD
-        int local_rank;         // Rank of this node in MPI_COMM_WORLD
+        //int parent_size;        // Size of parent comm
+        //int parent_rank;        // Rank of this node in parent comm
+        //int local_size;         // Size of MPI_COMM_WORLD
+        //int local_rank;         // Rank of this node in MPI_COMM_WORLD
         //int coord_rank;         // Rank of coord swing node in parent comm.
 
         friend class Policy;
@@ -62,11 +62,17 @@ class CacheNode : public virtual Node {
 
         void handle_get_ack();
 
-        void handle_forward();
+        void handle_push();
 
-        void handle_delete();
+        void handle_push_ack();
 
-        void handle_delete_ack();
+        void handle_drop();
+
+        void handle_drop_ack();
+
+        void handle_ref();
+
+        void handle_ref_ack();
 
         void handle_spawn_job();
 
