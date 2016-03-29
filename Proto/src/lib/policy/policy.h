@@ -13,10 +13,11 @@ class Policy {
         // if someone tries to "delete" a Policy reference.
         virtual ~Policy() {};
 
-        virtual void handle_put(Node *node) = 0;
-        virtual void handle_put_ack(Node *node) = 0;
-        virtual void handle_get(Node *node) = 0;
-        virtual void handle_get_ack(Node *node) = 0;
+        virtual void handle_put() = 0;
+        virtual void handle_put_ack() = 0;
+
+        virtual void handle_get() = 0;
+        virtual void handle_get_ack() = 0;
 
         /*
         // Adds the tuple described by the key/value pair to the cache, storing

@@ -1,6 +1,7 @@
 #ifndef __QUORUM__H__
 #define __QUORUM__H__
 
+#include <stdint.h>
 #include <unordered_map>
 #include <string>
 #include "policy.h"
@@ -8,30 +9,55 @@
 
 enum NodeType { SWING, CACHE };
 
+typedef struct GetReq {
+    uint32_t job_num;
+    uint32_t job_node;
+    uint32_t votes_req;
+    std::string key;
+    std::vector<Parcel> census;
+
+    bool operator== (const GetReq& other) {
+        if (this->job_num != other.job_num) {
+            return false;
+        }
+        else if (this->job_node != other.job_node) {
+            return false;
+        }
+        else if (this->key.compare(other.key) != 0) {
+            return false;
+        }
+        return true;
+    }
+} GetReq;
+
 class Quorum : public virtual Policy {
     private:
         NodeType node_type;
-        std::unordered_map<std::string, std::string> cache; 
+        Node *node;
+        std::unordered_map<std::string, Parcel> cache; 
+        std::vector<GetReq> pending_get_requests;
+
+        void send_job_node_get_ack(std::vector<GetReq>::iterator get_req_it);
 
     public:
-        Quorum(NodeType node_type);
+        Quorum(Node *node, NodeType node_type);
 
         virtual ~Quorum();
 
-        virtual void handle_put(Node *node);
-        virtual void handle_put_ack(Node *node);
-        virtual void handle_get(Node *node);
-        virtual void handle_get_ack(Node *node);
+        virtual void handle_put();
+        virtual void handle_put_ack();
+        virtual void handle_get();
+        virtual void handle_get_ack();
 
-        void swing_node_handle_put(Node *node, uint8_t *buf, MsgInfo *info);
-        void swing_node_handle_put_ack(Node *node, uint8_t *buf, MsgInfo *info);
-        void swing_node_handle_get(Node *node, uint8_t *buf, MsgInfo *info);
-        void swing_node_handle_get_ack(Node *node, uint8_t *buf, MsgInfo *info);
+        void swing_node_handle_put(uint8_t *buf, MsgInfo *info);
+        void swing_node_handle_put_ack(uint8_t *buf, MsgInfo *info);
+        void swing_node_handle_get(uint8_t *buf, MsgInfo *info);
+        void swing_node_handle_get_ack(uint8_t *buf, MsgInfo *info);
 
-        void cache_node_handle_put(Node *node, uint8_t *buf, MsgInfo *info);
-        void cache_node_handle_put_ack(Node *node, uint8_t *buf, MsgInfo *info);
-        void cache_node_handle_get(Node *node, uint8_t *buf, MsgInfo *info);
-        void cache_node_handle_get_ack(Node *node, uint8_t *buf, MsgInfo *info);
+        void cache_node_handle_put(uint8_t *buf, MsgInfo *info);
+        void cache_node_handle_put_ack(uint8_t *buf, MsgInfo *info);
+        void cache_node_handle_get(uint8_t *buf, MsgInfo *info);
+        void cache_node_handle_get_ack(uint8_t *buf, MsgInfo *info);
 
         /*
         // Adds the tuple described by the key/value pair to the cache, storing
@@ -59,7 +85,7 @@ class Quorum : public virtual Policy {
         // Populates the owners vector with a list of all nodes within the
         // system that have the tuple specified by the input key.
         virtual void get_owners(const std::string& key,
-                std::vector<uint32_t>& owners);
+        std::vector<uint32_t>& owners);
         */
 };
 
