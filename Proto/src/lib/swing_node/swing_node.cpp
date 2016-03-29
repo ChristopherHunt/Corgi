@@ -85,16 +85,20 @@ void SwingNode::handle_drop_ack() {
     print_msg_info(&msg_info);
 }
 
-void SwingNode::handle_ref() {
-    printf("===== REF =====\n");
+void SwingNode::handle_forward() {
+    printf("===== FORWARD =====\n");
     printf("SwingNode %d\n", local_rank);
     print_msg_info(&msg_info);
+
+    policy->handle_forward();
 }
 
-void SwingNode::handle_ref_ack() {
-    printf("===== REF_ACK =====\n");
+void SwingNode::handle_forward_ack() {
+    printf("===== FORWARD_ACK =====\n");
     printf("SwingNode %d\n", local_rank);
     print_msg_info(&msg_info);
+
+    policy->handle_forward_ack();
 }
 
 void SwingNode::handle_team_query() {
@@ -125,8 +129,8 @@ void SwingNode::handle_spawn_job() {
     // There must already have been a CommsGroup entry in the job_to_comms
     // map for this job number (either from cache node creation or from cache
     // node splitting / regrouping in a previous step).
-    ASSERT_TRUE(job_to_comm.count(job_num) != 0, MPI_Abort(MPI_COMM_WORLD, 1));
-    MPI_Comm cache_comm = job_to_comm[job_num];
+    ASSERT_TRUE(job_to_comms.count(job_num) != 0, MPI_Abort(MPI_COMM_WORLD, 1));
+    MPI_Comm cache_comm = job_to_comms[job_num].cache;
 
     int comm_size;
     MPI_Comm_remote_size(cache_comm, &comm_size);
@@ -188,10 +192,14 @@ void SwingNode::handle_spawn_cache() {
 
     // Ensure that this job does not have cache nodes already associated with
     // it.
-    ASSERT_TRUE(job_to_comm.count(job_num) == 0, MPI_Abort(MPI_COMM_WORLD, 1));
+    ASSERT_TRUE(job_to_comms.count(job_num) == 0, MPI_Abort(MPI_COMM_WORLD, 1));
 
     // Update bookkeeping.
-    job_to_comm[job_num] = temp;
+    CommGroup job_comm_group;
+    job_comm_group.swing = MPI_COMM_WORLD;
+    job_comm_group.cache = temp;
+    job_comm_group.job = MPI_COMM_NULL;
+    job_to_comms[job_num] = job_comm_group;
 
     printf("SwingNode %d spawned cache_nodes\n", local_rank);
 }
@@ -246,12 +254,12 @@ void SwingNode::handle_requests() {
                     handle_drop_ack();
                     break;
 
-                case REF:
-                    handle_ref();
+                case FORWARD:
+                    handle_forward();
                     break;
 
-                case REF_ACK:
-                    handle_ref_ack();
+                case FORWARD_ACK:
+                    handle_forward_ack();
                     break;
 
                 case SPAWN_JOB:
@@ -279,6 +287,7 @@ void SwingNode::handle_requests() {
 
 void SwingNode::message_select() {
     int flag;
+    MPI_Comm comm;
 
     // Check to see if leader is trying to talk to you.
     MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, parent_comm, &flag, &status);
@@ -302,13 +311,14 @@ void SwingNode::message_select() {
         msg_queue.push_back(msg_info);
     }
 
-    for (auto const &entry : job_to_comm) {
-        MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, entry.second, &flag, &status);
+    for (auto const &entry : job_to_comms) {
+        comm = entry.second.cache;
+        MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, comm, &flag, &status);
 
         if (flag == 1) {
             msg_info.tag = status.MPI_TAG; 
             msg_info.src = status.MPI_SOURCE;
-            msg_info.comm = entry.second;
+            msg_info.comm = comm;
             MPI_Get_count(&status, MPI_BYTE, &msg_info.count);
             msg_queue.push_back(msg_info);
         }

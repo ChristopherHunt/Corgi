@@ -47,7 +47,7 @@ class SwingNode : public virtual Node {
         std::deque<MsgInfo> msg_queue;
 
         // Map of job_num to cache node communicator.
-        std::unordered_map<uint32_t, MPI_Comm> job_to_comm;
+        //std::unordered_map<uint32_t, MPI_Comm> job_to_comm;
 
         // Allocates space for dynamic data structures within the object.
         void allocate();
@@ -66,9 +66,9 @@ class SwingNode : public virtual Node {
 
         void handle_get_ack();
 
-        void handle_ref();
+        void handle_forward();
 
-        void handle_ref_ack();
+        void handle_forward_ack();
 
         void handle_drop();
 

@@ -45,11 +45,11 @@ void print_msg_tag_handle(MsgTag tag) {
         case DROP_ACK:
             printf("DROP_ACK");
             break;
-        case REF:
-            printf("REF");
+        case FORWARD:
+            printf("FORWARD");
             break;
-        case REF_ACK:
-            printf("REF_ACK");
+        case FORWARD_ACK:
+            printf("FORWARD_ACK");
             break;
         case SPAWN_JOB:
             printf("SPAWN_JOB");

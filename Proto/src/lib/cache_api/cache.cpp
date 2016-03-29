@@ -22,6 +22,7 @@ void Cache::put(const std::string& key, const std::string& value) {
     PutTemplate *format = (PutTemplate *)buf;
     format->job_num = job_num;
     format->job_node = local_rank;
+    format->cache_node = coord_rank;
     format->key_size = key.size();
     memcpy(format->key, key.c_str(), key.size());
     format->value_size = value.size();
@@ -36,7 +37,7 @@ void Cache::put(const std::string& key, const std::string& value) {
         parent_comm, &request);
 
     // TODO: FIX THIS ISSUE -- WE COULD HAVE 2 MISALIGNED PUT_ACK RECV'S HERE
-    // WHEN WE MOVE TO NON-BLOCKING PUTS. ALSO, THIS TIES UP THE CACHE NODE
+    // WHEN WE MOVE TO NON-BLOCKING PUTS. ALSO, THIS TIES UP THE JOB NODE
     // NEEDLESSLY, SO SHOULD PROBABLY QUEUE UP THE BLOCKING PUT_ACK REQUESTS AND
     // ACT ON THEM AS THEY COME IN.
     recv_msg(buf, sizeof(PutAckTemplate), MPI_UINT8_T, coord_rank, PUT_ACK,
@@ -68,7 +69,7 @@ void Cache::get(const std::string& key, std::string& value) {
         parent_comm, &request);
 
     // TODO: FIX THIS ISSUE -- WE COULD HAVE 2 MISALIGNED GET_ACK RECV'S HERE
-    // WHEN WE GO TO NON-BLOCKING GET. ALSO, THIS TIES UP THE CACHE NODE
+    // WHEN WE GO TO NON-BLOCKING GET. ALSO, THIS TIES UP THE JOB NODE
     // NEEDLESSLY, SO SHOULD PROBABLY QUEUE UP THE BLOCKING GET_ACK REQUESTS AND
     // ACT ON THEM AS THEY COME IN.
     recv_msg(buf, sizeof(GetAckTemplate), MPI_UINT8_T, coord_rank, GET_ACK,

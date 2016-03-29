@@ -8,16 +8,37 @@ int main(int argc, char **argv) {
 
     Cache cache(&argc, &argv);
 
-    cache.put("key", "value");    
+    int local_rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &local_rank);
 
-    printf("cache.put returned!\n");
+    if (local_rank == 1) {
+        cache.put("Watson", "Corgi");    
+        printf("jobe_node %d - cache.put -> %s returned!\n", local_rank, "Watson");
+    }
+
+    if (local_rank == 3) {
+        cache.put("Hedgehog", "Cute");    
+        printf("jobe_node %d - cache.put -> %s returned!\n", local_rank, "Hedgehog");
+    }
 
     MPI_Barrier(MPI_COMM_WORLD);
 
-    std::string value;
-    cache.get("key", value);
+    if (local_rank == 2) {
+        cache.put("Watson", "Doof");    
+        printf("jobe_node %d - cache.put -> %s returned!\n", local_rank, "Watson");
+    }
 
-    printf("cache.get -> %s/%s\n", "key", value.c_str());
+    MPI_Barrier(MPI_COMM_WORLD);
+
+    if (local_rank == 0) {
+        std::string value;
+        cache.get("Watson", value);
+        printf("job_node %d - cache.get -> %s/%s\n", local_rank, "Watson", value.c_str());
+        cache.get("Hedgehog", value);
+        printf("job_node %d - cache.get -> %s/%s\n", local_rank, "Hedgehog", value.c_str());
+        cache.get("Fail", value);
+        printf("job_node %d - cache.get -> %s/%s\n", local_rank, "Fail", value.c_str());
+    }
     /*
     printf("job_node argc: %d\n", argc);
     for (int i = 0; i < argc; ++i) {

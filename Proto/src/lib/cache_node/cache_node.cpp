@@ -89,16 +89,20 @@ void CacheNode::handle_drop_ack() {
     print_msg_info(&msg_info);
 }
 
-void CacheNode::handle_ref() {
-    printf("===== REF =====\n");
+void CacheNode::handle_forward() {
+    printf("===== FORWARD =====\n");
     printf("CacheNode %d\n", local_rank);
     print_msg_info(&msg_info);
+
+    policy->handle_forward();
 }
 
-void CacheNode::handle_ref_ack() {
-    printf("===== REF_ACK =====\n");
+void CacheNode::handle_forward_ack() {
+    printf("===== FORWARD_ACK =====\n");
     printf("CacheNode %d\n", local_rank);
     print_msg_info(&msg_info);
+
+    policy->handle_forward_ack();
 }
 
 void CacheNode::handle_exit() {
@@ -151,12 +155,12 @@ void CacheNode::handle_requests() {
                     handle_drop_ack();
                     break;
 
-                case REF:
-                    handle_ref();
+                case FORWARD:
+                    handle_forward();
                     break;
 
-                case REF_ACK:
-                    handle_ref_ack();
+                case FORWARD_ACK:
+                    handle_forward_ack();
                     break;
 
                 case SPAWN_JOB:

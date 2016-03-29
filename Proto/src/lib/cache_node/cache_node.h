@@ -70,9 +70,9 @@ class CacheNode : public virtual Node {
 
         void handle_drop_ack();
 
-        void handle_ref();
+        void handle_forward();
 
-        void handle_ref_ack();
+        void handle_forward_ack();
 
         void handle_spawn_job();
 

@@ -27,7 +27,7 @@
 
 // Enums for different tags (message flags) between a CacheNode and the sender.
 enum MsgTag { PUT, PUT_ACK, GET, GET_ACK, PUSH, PUSH_ACK, DROP, DROP_ACK,
-              REF, REF_ACK, SPAWN_JOB, SPAWN_CACHE, EXIT };
+              FORWARD, FORWARD_ACK, SPAWN_JOB, SPAWN_CACHE, EXIT };
 
 // Struct to keep track of messages from other nodes which are waiting to be
 // tended to.
@@ -63,6 +63,7 @@ typedef struct SpawnNodesTemplate {
 typedef struct PutTemplate {
     uint32_t job_num;
     uint32_t job_node;
+    uint32_t cache_node;
     uint32_t key_size;
     uint8_t key[MAX_KEY_SIZE];
     uint32_t value_size;
@@ -73,6 +74,7 @@ typedef struct PutTemplate {
 typedef struct PutAckTemplate {
     uint32_t job_num;
     uint32_t job_node;
+    uint32_t cache_node;
     uint32_t key_size;
     uint8_t key[MAX_KEY_SIZE];
 } __attribute__((packed)) PutAckTemplate;
@@ -103,6 +105,14 @@ typedef struct CensusTemplate {
     uint32_t votes_req;
 } __attribute__((packed)) CensusTemplate;
 
+typedef struct ForwardTemplate {
+    uint32_t job_num;
+    uint32_t job_node;
+    uint32_t key_size;
+    uint8_t key[MAX_KEY_SIZE];
+    uint32_t cache_node;
+} __attribute__((packed)) ForwardTemplate;
+
 // Struct to keep track of which communicators are associated with a given job
 // number.
 // swing -> the swing node communicator for this job
@@ -117,6 +127,7 @@ typedef struct CommGroup {
 typedef struct JobNodeID {
     uint32_t job_num;
     uint32_t job_node;
+    uint32_t cache_node;
 
     bool operator== (const JobNodeID& other) {
         return this->job_num == other.job_num &&

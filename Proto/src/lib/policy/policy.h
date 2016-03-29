@@ -19,6 +19,9 @@ class Policy {
         virtual void handle_get() = 0;
         virtual void handle_get_ack() = 0;
 
+        virtual void handle_forward() = 0;
+        virtual void handle_forward_ack() = 0;
+
         /*
         // Adds the tuple described by the key/value pair to the cache, storing
         // the copy on the local cache node as well as updating it within the
