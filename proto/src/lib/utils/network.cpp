@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include "network_header.h"
+#include "network.h"
 
 void print_msg_info(MsgInfo *msg_info) {
    MsgTag tag = (MsgTag)msg_info->tag;

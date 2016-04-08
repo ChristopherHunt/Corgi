@@ -6,10 +6,10 @@
 #include <mpi.h>
 #include <deque>
 #include <vector>
-#include "../policy/policy.h"
-#include "../policy/quorum.h"
-#include "../utils/network_header.h"
-#include "../node.h"
+#include "policy/policy.h"
+#include "policy/quorum.h"
+#include "utils/network.h"
+#include "utils/node.h"
 
 class SwingNode : public virtual Node {
    public:

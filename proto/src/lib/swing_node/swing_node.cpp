@@ -217,7 +217,7 @@ void SwingNode::handle_spawn_cache() {
    argv[1] = NULL;
 
    // All swing nodes spawn the cache nodes.
-   MPI_Comm_spawn("./cache_node_main", argv, node_count, MPI_INFO_NULL,
+   MPI_Comm_spawn("./cache_layer", argv, node_count, MPI_INFO_NULL,
          0, temp, &temp, MPI_ERRCODES_IGNORE);
 
    // Ensure that this job does not have cache nodes already associated with

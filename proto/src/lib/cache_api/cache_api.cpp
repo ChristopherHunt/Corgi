@@ -2,8 +2,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <mpi.h>
-#include "../utils/network_header.h"
-#include "cache.h"
+#include "utils/network.h"
+#include "cache_api.h"
 
 Cache::Cache(int *argc_ptr, char ***argv_ptr) {
    allocate();

@@ -1,5 +1,5 @@
 #include <mpi.h>
-#include "swing_node.h"
+#include "swing_node/swing_node.h"
 
 int main(int argc, char **argv) {
    MPI_Init(NULL, NULL);

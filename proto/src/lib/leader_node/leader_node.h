@@ -8,7 +8,7 @@
 #include <vector>
 #include <stdint.h>
 #include <string>
-#include "../utils/network_header.h"
+#include "utils/network.h"
 
 class LeaderNode {
    public:

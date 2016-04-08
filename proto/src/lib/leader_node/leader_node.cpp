@@ -75,7 +75,7 @@ void LeaderNode::create_test_job() {
 
    // TODO: This is a simple place holder for job node spawning,
    //       will want to make this more flexible later.
-   spawn_job_nodes(job_num, "./job_node_main", &temp, 4);
+   spawn_job_nodes(job_num, "./job_layer", &temp, 4);
 }
 
 void LeaderNode::handle_spawn_job() {
@@ -179,7 +179,7 @@ void LeaderNode::spawn_swing_nodes(MPI_Comm parent, MPI_Comm *child, uint16_t co
    //       easier for testing.
    MPI_Comm_dup(parent, child);
 
-   MPI_Comm_spawn("./swing_node_main", MPI_ARGV_NULL, count, MPI_INFO_NULL, 0,
+   MPI_Comm_spawn("./swing_layer", MPI_ARGV_NULL, count, MPI_INFO_NULL, 0,
          *child, child, MPI_ERRCODES_IGNORE);
 }
 

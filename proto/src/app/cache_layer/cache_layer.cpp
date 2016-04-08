@@ -1,6 +1,7 @@
 #include <mpi.h>
 #include <stdio.h>
-#include "cache_node.h"
+#include "cache_node/cache_node.h"
+#include "utils/network.h"
 
 int main(int argc, char **argv) {
    MPI_Init(&argc, &argv);

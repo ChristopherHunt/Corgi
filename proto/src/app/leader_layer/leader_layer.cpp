@@ -1,5 +1,5 @@
 #include <mpi.h>
-#include "leader_node.h"
+#include "leader_node/leader_node.h"
 
 int main(int argc, char **argv) {
    MPI_Init(NULL, NULL);

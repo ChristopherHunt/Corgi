@@ -3,7 +3,7 @@
 
 #include <mpi.h>
 #include <unordered_map>
-#include "utils/network_header.h"
+#include "utils/network.h"
 
 class Node {
     public:
