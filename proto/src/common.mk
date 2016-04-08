@@ -28,4 +28,4 @@ clean:
 	$(RM) $(OUTFILE)
 
 %.o: %.cpp
-	$(CXX) $(CXXFLAGS) -o $@ -c $< $(INCLUDES)
+	$(CXX) $(CXXFLAGS) $(CXX_DEBUG_FLAGS) -o $@ -c $< $(INCLUDES)

@@ -1,6 +1,8 @@
 SHELL := /bin/bash
 host_file := config/hosts.txt
 
+export CXX_DEBUG_FLAGS
+
 lib_cache_api := src/lib/cache_api
 lib_leader_node := src/lib/leader_node
 lib_swing_node := src/lib/swing_node
@@ -22,7 +24,11 @@ dirs := $(libraries) $(apps)
 
 .PHONY: build cp_bins run $(apps) $(libraries)
 
-build: $(apps) cp_bins
+build: clean $(apps) cp_bins
+
+debug:
+	$(eval CXX_DEBUG_FLAGS += -D DEBUG)
+	$(MAKE) build
 
 $(apps): $(libraries)
 	$(MAKE) -s -C $@
@@ -39,7 +45,7 @@ cp_bins:
 	cp src/app/cache_layer/cache_layer bin
 	cp src/app/job_layer/job_layer bin
 
-run: build
+run:
 	#cd bin && mpirun -n 4 -ppn 1 -iface eth0 -f $(host_file) ./leader_layer
 	cd bin && mpirun -n 1 ./leader_layer
 
