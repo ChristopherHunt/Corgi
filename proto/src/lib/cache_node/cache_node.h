@@ -8,43 +8,20 @@
 #include <vector>
 #include "policy/policy.h"
 #include "policy/quorum.h"
-#include "utils/network.h"
-#include "utils/node.h"
+#include "network/network.h"
+#include "shared/node.h"
 
 class CacheNode : public virtual Node {
    public:
+      // Constructs a Cache node, referencing a swing node in its parent
+      // communicator who's id is held within the mapping vector.
       CacheNode(std::vector<uint32_t>& mapping);
 
       ~CacheNode();
 
    private:
-      //MPI_Status status;      // Status structure for checking communications.
-      //MPI_Comm parent_comm;   // Intercommunicator between local & parent comm
-      //int parent_size;        // Size of parent comm
-      //int parent_rank;        // Rank of this node in parent comm
-      //int local_size;         // Size of MPI_COMM_WORLD
-      //int local_rank;         // Rank of this node in MPI_COMM_WORLD
-      //int coord_rank;         // Rank of coord swing node in parent comm.
-
       friend class Policy;
       Policy *policy;
-
-      // Struct to hold info about new messages.
-      //MsgInfo msg_info;
-
-      // Buffer for holding message data.
-      //uint8_t *buf;
-
-      // Queue of messages for the cache_node to handle.
-      std::deque<MsgInfo> msg_queue;
-
-      // Map of keys to values on this local node.
-      // TODO: Decide if we want to use a map or an unordered_map here
-      //std::map<std::string, std::string> cache;
-
-      // Map of job_num to CommGroup struct containing the swing, cache and
-      // job communicators that are bound to this job_num.
-      //std::unordered_map<uint32_t, CommGroup> job_to_comms;
 
       // Allocates space for dynamic data structures within the object.
       void allocate();

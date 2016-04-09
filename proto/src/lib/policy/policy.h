@@ -4,8 +4,8 @@
 #include <stdint.h>
 #include <string>
 #include <vector>
-#include "utils/network.h"
-#include "utils/node.h"
+#include "network/network.h"
+#include "shared/node.h"
 
 class Policy {
    public:

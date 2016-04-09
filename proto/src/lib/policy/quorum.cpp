@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <algorithm>
+#include "utils/utils.h"
 #include "quorum.h"
 
 Quorum::Quorum(Node *node, NodeType node_type) {
@@ -278,7 +279,7 @@ void Quorum::cache_node_handle_get_ack(uint8_t *buf, MsgInfo *msg_info) {
 
       if (it == pending_get_requests.end()) {
          // This should never happen so abort.
-         ASSERT_TRUE(1 == 0, MPI_Abort(MPI_COMM_WORLD, 1));
+         ASSERT(1 == 0, MPI_Abort(MPI_COMM_WORLD, 1));
       }
       else {
          // Update the votes_required
@@ -303,7 +304,7 @@ void Quorum::cache_node_handle_get_ack(uint8_t *buf, MsgInfo *msg_info) {
 
       if (it == pending_get_requests.end()) {
          // This should never happen so abort.
-         ASSERT_TRUE(1 == 0, MPI_Abort(MPI_COMM_WORLD, 1));
+         ASSERT(1 == 0, MPI_Abort(MPI_COMM_WORLD, 1));
       }
       else {
          // Add the new value to the vector of votes.
@@ -358,7 +359,7 @@ void Quorum::cache_node_handle_forward(uint8_t *buf, MsgInfo *msg_info) {
       parcel = cache[key];
    }
    else {
-      ASSERT_TRUE(1 == 0, MPI_Abort(MPI_COMM_WORLD, 1));
+      ASSERT(1 == 0, MPI_Abort(MPI_COMM_WORLD, 1));
    }
    std::string value = parcel.value;
 
@@ -442,7 +443,7 @@ void Quorum::handle_put() {
          break;
 
       default:
-         ASSERT_TRUE(1 == 0, MPI_Abort(1, MPI_COMM_WORLD));
+         ASSERT(1 == 0, MPI_Abort(1, MPI_COMM_WORLD));
          break;
    }
 }
@@ -465,7 +466,7 @@ void Quorum::handle_put_ack() {
          break;
 
       default:
-         ASSERT_TRUE(1 == 0, MPI_Abort(1, MPI_COMM_WORLD));
+         ASSERT(1 == 0, MPI_Abort(1, MPI_COMM_WORLD));
          break;
    }
 }
@@ -488,7 +489,7 @@ void Quorum::handle_get() {
          break;
 
       default:
-         ASSERT_TRUE(1 == 0, MPI_Abort(1, MPI_COMM_WORLD));
+         ASSERT(1 == 0, MPI_Abort(1, MPI_COMM_WORLD));
          break;
    }
 }
@@ -511,7 +512,7 @@ void Quorum::handle_get_ack() {
          break;
 
       default:
-         ASSERT_TRUE(1 == 0, MPI_Abort(1, MPI_COMM_WORLD));
+         ASSERT(1 == 0, MPI_Abort(1, MPI_COMM_WORLD));
          break;
    }
 }
@@ -534,7 +535,7 @@ void Quorum::handle_forward() {
          break;
 
       default:
-         ASSERT_TRUE(1 == 0, MPI_Abort(1, MPI_COMM_WORLD));
+         ASSERT(1 == 0, MPI_Abort(1, MPI_COMM_WORLD));
          break;
    }
 }
@@ -557,7 +558,7 @@ void Quorum::handle_forward_ack() {
          break;
 
       default:
-         ASSERT_TRUE(1 == 0, MPI_Abort(1, MPI_COMM_WORLD));
+         ASSERT(1 == 0, MPI_Abort(1, MPI_COMM_WORLD));
          break;
    }
 }

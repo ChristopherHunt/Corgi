@@ -3,6 +3,7 @@
 #include <string.h>
 #include <iostream>
 #include <sstream>
+#include "utils/utils.h"
 #include "leader_node.h"
 
 LeaderNode::LeaderNode() {
@@ -23,13 +24,12 @@ LeaderNode::LeaderNode() {
 }
 
 LeaderNode::~LeaderNode() {
-   //MPI_Type_free(&JOB_EXEC_MSG);
    free(buf);
 }
 
 void LeaderNode::allocate() {
    buf = (uint8_t *)calloc(INITIAL_BUF_SIZE, sizeof(uint8_t));
-   ASSERT_TRUE(buf != NULL, MPI_Abort(MPI_COMM_WORLD, 1));
+   ASSERT(buf != NULL, MPI_Abort(MPI_COMM_WORLD, 1));
 }
 
 // TODO: REMOVE THIS METHOD (It is just for testing functionality).
@@ -51,7 +51,7 @@ void LeaderNode::create_test_job() {
    // TODO: Make a better way of adding mappings for coordinator nodes.
    //       Use this bandaid to get off the ground for now.
    int job_num = next_job_num++; 
-   job_to_comm[job_num] = temp; 
+   job_to_comms[job_num].swing = temp; 
 
    std::vector<uint32_t> temp_vec;
    temp_vec.push_back(0);
@@ -84,6 +84,9 @@ void LeaderNode::handle_spawn_job() {
    printf("LeaderNode %d\n", local_rank);
    print_msg_info(&msg_info);
 #endif
+
+   fprintf(stderr, "handle_spawn_job not implemented on leader_node!\n");
+   ASSERT(1 == 0, MPI_Abort(MPI_COMM_WORLD, 1));
 }
 
 void LeaderNode::handle_spawn_cache() {
@@ -92,6 +95,9 @@ void LeaderNode::handle_spawn_cache() {
    printf("LeaderNode %d\n", local_rank);
    print_msg_info(&msg_info);
 #endif
+
+   fprintf(stderr, "handle_spawn_cache not implemented on leader_node!\n");
+   ASSERT(1 == 0, MPI_Abort(MPI_COMM_WORLD, 1));
 }
 
 void LeaderNode::handle_exit() {
@@ -100,6 +106,9 @@ void LeaderNode::handle_exit() {
    printf("LeaderNode %d\n", local_rank);
    print_msg_info(&msg_info);
 #endif
+
+   fprintf(stderr, "handle_exit not implemented on leader_node!\n");
+   ASSERT(1 == 0, MPI_Abort(MPI_COMM_WORLD, 1));
 }
 
 void LeaderNode::handle_requests() {
@@ -135,7 +144,7 @@ void LeaderNode::handle_requests() {
                printf("===== DEFAULT =====\n");
                printf("LeaderNode %d\n", local_rank);
                print_msg_info(&msg_info);
-               ASSERT_TRUE(1 == 0, MPI_Abort(MPI_COMM_WORLD, 1));
+               ASSERT(1 == 0, MPI_Abort(MPI_COMM_WORLD, 1));
                break;
          }
       }
@@ -145,13 +154,13 @@ void LeaderNode::handle_requests() {
 void LeaderNode::message_select() {
    int flag;
 
-   for (auto const &entry : job_to_comm) { 
-      MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, entry.second, &flag, &status);
+   for (auto const &entry : job_to_comms) { 
+      MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, entry.second.swing, &flag, &status);
 
       if (flag == 1) {
          msg_info.tag = status.MPI_TAG; 
          msg_info.src = status.MPI_SOURCE;
-         msg_info.comm = entry.second;
+         msg_info.comm = entry.second.swing;
          MPI_Get_count(&status, MPI_BYTE, &msg_info.count);
          msg_queue.push_back(msg_info);
       }
@@ -184,6 +193,8 @@ void LeaderNode::spawn_swing_nodes(MPI_Comm parent, MPI_Comm *child, uint16_t co
 }
 
 void LeaderNode::spawn_cache_nodes(uint32_t job_num, MPI_Comm *comm, uint16_t count) {
+   ASSERT(comm != NULL, MPI_Abort(MPI_COMM_WORLD, 1));
+
 #ifdef DEBUG
    printf("LeaderNode sending SPAWN_CACHE of size %d\n", count);
 #endif
@@ -200,7 +211,7 @@ void LeaderNode::spawn_cache_nodes(uint32_t job_num, MPI_Comm *comm, uint16_t co
    format->mapping_size = (uint16_t)result.size();
    memcpy(format->mapping, result.c_str(), result.size());
 
-   ASSERT_TRUE(result.size() <= MAX_MAPPING_SIZE, MPI_Abort(MPI_COMM_WORLD, 1));
+   ASSERT(result.size() <= MAX_MAPPING_SIZE, MPI_Abort(MPI_COMM_WORLD, 1));
    int msg_size = sizeof(SpawnNodesTemplate);
 #ifdef DEBUG
    printf("job_num: %d\n", job_num);
@@ -226,6 +237,8 @@ void LeaderNode::spawn_cache_nodes(uint32_t job_num, MPI_Comm *comm, uint16_t co
 void LeaderNode::spawn_job_nodes(uint32_t job_num, std::string exec_name,
       MPI_Comm *comm, uint16_t count) {
 
+   ASSERT(comm != NULL, MPI_Abort(MPI_COMM_WORLD, 1));
+
    SpawnNodesTemplate *format = (SpawnNodesTemplate *)buf;
    format->job_num = job_num;
    format->count = count;
@@ -238,8 +251,8 @@ void LeaderNode::spawn_job_nodes(uint32_t job_num, std::string exec_name,
    memcpy(format->exec_name, exec_name.c_str(), exec_name.size());
    int msg_size = sizeof(SpawnNodesTemplate);
 
-   ASSERT_TRUE(result.size() <= MAX_MAPPING_SIZE, MPI_Abort(MPI_COMM_WORLD, 1));
-   ASSERT_TRUE(exec_name.size() <= MAX_EXEC_NAME_SIZE, MPI_Abort(MPI_COMM_WORLD, 1));
+   ASSERT(result.size() <= MAX_MAPPING_SIZE, MPI_Abort(MPI_COMM_WORLD, 1));
+   ASSERT(exec_name.size() <= MAX_EXEC_NAME_SIZE, MPI_Abort(MPI_COMM_WORLD, 1));
 
 #ifdef DEBUG
    printf("Leader sending spawn job msg to swing node 0\n");

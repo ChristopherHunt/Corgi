@@ -65,43 +65,7 @@ void print_msg_tag_handle(MsgTag tag) {
    }
 }
 
-void vector_to_stringlistG(std::vector<char> &vec, std::string &result) {
-   result.clear();
-   std::stringstream ss;
-   std::copy(vec.begin(), vec.end(), std::ostream_iterator<char>(ss, ","));
-   result.assign(ss.str());
-}
-
-void stringlist_to_vector(std::vector<char> &vec, std::string &result) {
-   vec.clear();
-   std::stringstream ss(result);
-   std::copy(std::istream_iterator<char>(ss),
-         std::istream_iterator<char>(), std::back_inserter(vec));
-}
-
-void vector_to_stringlist(std::vector<uint32_t> &vec, std::string &result) {
-   result.clear();
-   std::stringstream ss;
-   std::copy(vec.begin(), vec.end(), std::ostream_iterator<uint32_t>(ss, ","));
-   result.assign(ss.str());
-}
-
-void stringlist_to_vector(std::vector<uint32_t> &vec, std::string &result) {
-   vec.clear();
-   std::stringstream ss(result);
-   std::copy(std::istream_iterator<uint32_t>(ss),
-         std::istream_iterator<uint32_t>(), std::back_inserter(vec));
-}
-
-void replace_commas(std::string &str) {
-   std::replace(str.begin(), str.end(), ',', ' ');
-}
-
-void remove_commas(std::vector<char> &vec) {
-   vec.erase(std::remove(vec.begin(), vec.end(), ','), vec.end());
-}
-
-void send_msg(const void *buf, int count, MPI_Datatype datatype, int dest,
+int32_t send_msg(const void *buf, int count, MPI_Datatype datatype, int dest,
       int tag, MPI_Comm comm, MPI_Request *request) {
 #ifdef DEBUG
    printf("send_msg:\n");
@@ -113,11 +77,13 @@ void send_msg(const void *buf, int count, MPI_Datatype datatype, int dest,
 
    MPI_Isend(buf, count, datatype, dest, tag, comm, request);
    wait_for_send(request);
+   return count * sizeof(datatype);
 }
 
-void recv_msg(void *buf, int count, MPI_Datatype datatype, int source, int tag,
+int32_t recv_msg(void *buf, int count, MPI_Datatype datatype, int source, int tag,
       MPI_Comm comm, MPI_Status *status) {
    MPI_Recv(buf, count, datatype, source, tag, comm, status);
+   return count * sizeof(datatype);
 }
 
 void wait_for_send(MPI_Request *request) {
@@ -126,9 +92,4 @@ void wait_for_send(MPI_Request *request) {
    while (flag == 0) {
       MPI_Test(request, &flag, &status);
    }
-}
-
-void get_timestamp(uint64_t *timestamp) {
-   *timestamp = (uint64_t)(std::chrono::duration_cast<std::chrono::microseconds>(
-            std::chrono::system_clock::now().time_since_epoch()).count());
 }

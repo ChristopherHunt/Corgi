@@ -5,7 +5,7 @@
 #include <unordered_map>
 #include <string>
 #include "policy.h"
-#include "utils/node.h"
+#include "shared/node.h"
 
 enum NodeType { SWING, CACHE };
 

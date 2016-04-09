@@ -1,7 +1,8 @@
 #include <mpi.h>
 #include <stdio.h>
 #include "cache_node/cache_node.h"
-#include "utils/network.h"
+#include "network/network.h"
+#include "utils/utils.h"
 
 int main(int argc, char **argv) {
    MPI_Init(&argc, &argv);
@@ -14,7 +15,7 @@ int main(int argc, char **argv) {
 #endif
 
    std::string mapping(argv[1]);
-   replace_commas(mapping);
+   //replace_commas(mapping);
    std::vector<uint32_t> map_vec;
    stringlist_to_vector(map_vec, mapping);
 

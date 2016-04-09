@@ -1,4 +1,4 @@
-LIB := lib_network.a
-OBJS := network.o
+LIB := lib_utils.a
+OBJS := utils.o
 
 include ../../lib.mk

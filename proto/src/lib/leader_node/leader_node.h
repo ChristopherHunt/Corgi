@@ -8,32 +8,17 @@
 #include <vector>
 #include <stdint.h>
 #include <string>
-#include "utils/network.h"
+#include "shared/node.h"
+#include "network/network.h"
 
-class LeaderNode {
+class LeaderNode : public Node {
    public:
       LeaderNode();
 
       ~LeaderNode();
 
    private:
-      MPI_Status status;      // Status structure for checking communications.
-
-      int local_size;         // Size of MPI_COMM_WORLD
-      int local_rank;         // Rank of this node in MPI_COMM_WORLD
       uint32_t next_job_num;  // A counter for assigning new job tags.
-
-      // Struct to hold info about new messages.
-      MsgInfo msg_info;
-
-      // Buffer for holding message data.
-      uint8_t *buf;
-
-      // Queue of messages for the leader_node to handle.
-      std::deque<MsgInfo> msg_queue;
-
-      // Map of job_num to swing node communicator.
-      std::unordered_map<uint32_t, MPI_Comm> job_to_comm;
 
       // Map of job tag to map of cache node -> coord swing node.
       std::unordered_map<uint32_t, std::vector<uint32_t> > job_to_swing;
@@ -46,12 +31,6 @@ class LeaderNode {
 
       // Method which creates a hard-coded job for cache testing.
       void create_test_job();
-
-      // Defines the MPI_Datatypes needed for this node to communicate with
-      // others.
-      void define_datatypes();
-
-      void handle_team_query();
 
       void handle_spawn_job();
 
@@ -86,9 +65,6 @@ class LeaderNode {
       // Queries the MPI system to determine where this node is relative to
       // both its peers and its parents.
       void orient();
-
-      // Prints the current contents of msg_info to stdout.
-      //void print_msg_info();
 };
 
 #endif

@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include "utils/utils.h"
 #include "cache_node.h"
 
 // TODO: NEED TO ADD FUNCTIONALITY TO ADD JOBS WITHOUT ADDING CACHE NODES.
@@ -32,7 +33,7 @@ CacheNode::~CacheNode() {
 
 void CacheNode::allocate() {
    buf = (uint8_t *)calloc(INITIAL_BUF_SIZE, sizeof(uint8_t));
-   ASSERT_TRUE(buf != NULL, MPI_Abort(MPI_COMM_WORLD, 1));
+   ASSERT(buf != NULL, MPI_Abort(MPI_COMM_WORLD, 1));
 }
 
 void CacheNode::handle_put() {
@@ -81,6 +82,9 @@ void CacheNode::handle_push() {
    printf("CacheNode %d\n", local_rank);
    print_msg_info(&msg_info);
 #endif
+
+   fprintf(stderr, "handle_push not implemented on cache_node!\n");
+   ASSERT(1 == 0, MPI_Abort(MPI_COMM_WORLD, 1));
 }
 
 void CacheNode::handle_push_ack() {
@@ -89,6 +93,9 @@ void CacheNode::handle_push_ack() {
    printf("CacheNode %d\n", local_rank);
    print_msg_info(&msg_info);
 #endif
+
+   fprintf(stderr, "handle_push_ack not implemented on cache_node!\n");
+   ASSERT(1 == 0, MPI_Abort(MPI_COMM_WORLD, 1));
 }
 
 void CacheNode::handle_drop() {
@@ -97,6 +104,9 @@ void CacheNode::handle_drop() {
    printf("CacheNode %d\n", local_rank);
    print_msg_info(&msg_info);
 #endif
+
+   fprintf(stderr, "handle_drop not implemented on cache_node!\n");
+   ASSERT(1 == 0, MPI_Abort(MPI_COMM_WORLD, 1));
 }
 
 void CacheNode::handle_drop_ack() {
@@ -105,6 +115,9 @@ void CacheNode::handle_drop_ack() {
    printf("CacheNode %d\n", local_rank);
    print_msg_info(&msg_info);
 #endif
+
+   fprintf(stderr, "handle_drop_ack not implemented on cache_node!\n");
+   ASSERT(1 == 0, MPI_Abort(MPI_COMM_WORLD, 1));
 }
 
 void CacheNode::handle_forward() {
@@ -133,6 +146,9 @@ void CacheNode::handle_exit() {
    printf("CacheNode %d\n", local_rank);
    print_msg_info(&msg_info);
 #endif
+
+   fprintf(stderr, "handle_exit not implemented on cache_node!\n");
+   ASSERT(1 == 0, MPI_Abort(MPI_COMM_WORLD, 1));
 }
 
 void CacheNode::handle_requests() {
@@ -201,7 +217,7 @@ void CacheNode::handle_requests() {
                printf("===== DEFAULT =====\n");
                printf("CacheNode %d\n", local_rank);
                print_msg_info(&msg_info);
-               ASSERT_TRUE(1 == 0, MPI_Abort(MPI_COMM_WORLD, 1));
+               ASSERT(1 == 0, MPI_Abort(MPI_COMM_WORLD, 1));
                break;
          }
       }
@@ -218,7 +234,7 @@ void CacheNode::handle_spawn_job() {
    recv_msg(buf, msg_info.count, MPI_UINT8_T, msg_info.src, SPAWN_JOB,
          msg_info.comm, &status);
 
-   ASSERT_TRUE(msg_info.count == sizeof(SpawnNodesTemplate),
+   ASSERT(msg_info.count == sizeof(SpawnNodesTemplate),
          MPI_Abort(MPI_COMM_WORLD, 1));
 
    SpawnNodesTemplate *format = (SpawnNodesTemplate *)buf;
@@ -226,6 +242,8 @@ void CacheNode::handle_spawn_job() {
    uint16_t node_count = format->count;
    uint16_t mapping_size = format->mapping_size;
    std::string mapping_str(format->mapping, format->mapping + mapping_size);
+
+   // Convert string mapping to vector
    std::vector<char> mapping;
    stringlist_to_vector(mapping, mapping_str);
 
@@ -256,7 +274,7 @@ void CacheNode::handle_spawn_job() {
    // Create an array that maps each job node to its corresponding cache node.
    char *argv[3];
    argv[0] = job_num_array;
-   argv[1] = &mapping[0];
+   argv[1] = (char *)(mapping_str.c_str());
    argv[2] = NULL;
 
    MPI_Comm comm;
@@ -305,7 +323,7 @@ void CacheNode::message_select() {
 
    // Check to see if any job nodes are attempting to talk to you.
    for (auto const &entry : job_to_comms) {
-      ASSERT_TRUE(entry.second.job != MPI_COMM_NULL,
+      ASSERT(entry.second.job != MPI_COMM_NULL,
             MPI_Abort(MPI_COMM_WORLD, 1));
 
       MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, entry.second.job, &flag,

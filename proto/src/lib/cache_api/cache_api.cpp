@@ -2,24 +2,31 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <mpi.h>
-#include "utils/network.h"
+#include "network/network.h"
+#include "utils/utils.h"
 #include "cache_api.h"
 
 Cache::Cache(int *argc_ptr, char ***argv_ptr) {
+   ASSERT(argc_ptr != NULL, MPI_Abort(MPI_COMM_WORLD, 1));
+   ASSERT(argv_ptr != NULL, MPI_Abort(MPI_COMM_WORLD, 1));
+
    allocate();
    orient(argc_ptr, argv_ptr); 
 }
 
 void Cache::allocate() {
    buf = (uint8_t *)calloc(INITIAL_BUF_SIZE, sizeof(uint8_t)); 
-   ASSERT_TRUE(buf != NULL, MPI_Abort(MPI_COMM_WORLD, 1));
+   ASSERT(buf != NULL, MPI_Abort(MPI_COMM_WORLD, 1));
 }
 
 Cache::~Cache() {
    free(buf);
 }
 
-void Cache::put(const std::string& key, const std::string& value) {
+// TODO: Handle put failures from cache node!
+bool Cache::put(const std::string& key, const std::string& value) {
+   int32_t result;
+
    PutTemplate *format = (PutTemplate *)buf;
    format->job_num = job_num;
    format->job_node = local_rank;
@@ -37,15 +44,21 @@ void Cache::put(const std::string& key, const std::string& value) {
    printf("Job %d Rank %d calling put on %s/%s!\n", job_num, local_rank, key.c_str(), value.c_str());
 #endif
 
-   send_msg(buf, sizeof(PutTemplate), MPI_UINT8_T, coord_rank, PUT,
-         parent_comm, &request);
+   result = send_msg(buf, sizeof(PutTemplate), MPI_UINT8_T, coord_rank, PUT,
+                     parent_comm, &request);
+
+   if (result != sizeof(PutTemplate)) {
+      return false;
+   }
 
    // TODO: FIX THIS ISSUE -- WE COULD HAVE 2 MISALIGNED PUT_ACK RECV'S HERE
    // WHEN WE MOVE TO NON-BLOCKING PUTS. ALSO, THIS TIES UP THE JOB NODE
    // NEEDLESSLY, SO SHOULD PROBABLY QUEUE UP THE BLOCKING PUT_ACK REQUESTS AND
    // ACT ON THEM AS THEY COME IN.
-   recv_msg(buf, sizeof(PutAckTemplate), MPI_UINT8_T, coord_rank, PUT_ACK,
-         parent_comm, &status);
+   result = recv_msg(buf, sizeof(PutAckTemplate), MPI_UINT8_T, coord_rank,
+                     PUT_ACK, parent_comm, &status);
+   
+   return (result == sizeof(PutAckTemplate)) ? true : false;
 }
 
 
@@ -57,7 +70,9 @@ void Cache::put(const std::string& key, const std::string& value) {
 // Asking cache node resolves any conflicts using timestamps
 // Asking cache node updates its store
 // Asking cache node return to the calling job node
-void Cache::get(const std::string& key, std::string& value) {
+bool Cache::get(const std::string& key, std::string& value) {
+   int32_t result;
+
    GetTemplate *format = (GetTemplate *)buf;
    format->job_num = job_num;
    format->job_node = local_rank;
@@ -79,36 +94,82 @@ void Cache::get(const std::string& key, std::string& value) {
    // WHEN WE GO TO NON-BLOCKING GET. ALSO, THIS TIES UP THE JOB NODE
    // NEEDLESSLY, SO SHOULD PROBABLY QUEUE UP THE BLOCKING GET_ACK REQUESTS AND
    // ACT ON THEM AS THEY COME IN.
-   recv_msg(buf, sizeof(GetAckTemplate), MPI_UINT8_T, coord_rank, GET_ACK,
-         parent_comm, &status);
+   result = recv_msg(buf, sizeof(GetAckTemplate), MPI_UINT8_T, coord_rank,
+                     GET_ACK, parent_comm, &status);
 
    GetAckTemplate *temp = (GetAckTemplate *)buf;
 
    value.clear();
    value.assign((const char *)temp->value, temp->value_size);
+
+   return (temp->value_size > 0) ? true : false;
 }
 
-int32_t Cache::push(const std::string& key, uint32_t node_id) {
-   return 0;
+bool Cache::push(const std::string& key, uint32_t node_id) {
+   fprintf(stderr, "push not implemented!\n");
+   ASSERT(1 == 0, MPI_Abort(1, MPI_COMM_WORLD));
+   return false;
 }
 
-int32_t Cache::drop(const std::string& key) {
-   return 0;
+bool Cache::pull(const std::string& key, uint32_t node_id) {
+   fprintf(stderr, "pull not implemented!\n");
+   ASSERT(1 == 0, MPI_Abort(1, MPI_COMM_WORLD));
+   return false;
 }
 
-int32_t Cache::collect(const std::string& key) {
-   return 0;
+bool Cache::scatter(const std::string& key,
+   const std::vector<uint32_t>& node_ids) {
+
+   fprintf(stderr, "scatter not implemented!\n");
+   ASSERT(1 == 0, MPI_Abort(1, MPI_COMM_WORLD));
+   return false;
+}
+
+bool Cache::gather(const std::string& key,
+   const std::vector<uint32_t>& node_ids) {
+
+   fprintf(stderr, "gather not implemented!\n");
+   ASSERT(1 == 0, MPI_Abort(1, MPI_COMM_WORLD));
+   return false;
+}
+
+bool Cache::drop(const std::string& key) {
+   fprintf(stderr, "drop not implemented!\n");
+   ASSERT(1 == 0, MPI_Abort(1, MPI_COMM_WORLD));
+   return false;
+}
+
+bool Cache::collect(const std::string& key) {
+   fprintf(stderr, "collect not implemented!\n");
+   ASSERT(1 == 0, MPI_Abort(1, MPI_COMM_WORLD));
+   return false;
+}
+
+bool put_local(const std::string& key, const std::string& value) {
+   fprintf(stderr, "put_local not implemented!\n");
+   ASSERT(1 == 0, MPI_Abort(1, MPI_COMM_WORLD));
+   return false;
+}
+
+bool get_local(const std::string& key, const std::string& value) {
+   fprintf(stderr, "get_local not implemented!\n");
+   ASSERT(1 == 0, MPI_Abort(1, MPI_COMM_WORLD));
+   return false;
 }
 
 void Cache::get_owners(const std::string& key, std::vector<uint32_t>& owners) {
-
+   fprintf(stderr, "get_owners not implemented!\n");
+   ASSERT(1 == 0, MPI_Abort(1, MPI_COMM_WORLD));
 }
 
 void Cache::orient(int *argc_ptr, char ***argv_ptr) {
+   ASSERT(argc_ptr != NULL, MPI_Abort(MPI_COMM_WORLD, 1));
+   ASSERT(argv_ptr != NULL, MPI_Abort(MPI_COMM_WORLD, 1));
+
    int argc = *argc_ptr;
    char **argv = *argv_ptr;
 
-   ASSERT_TRUE(argc >= 3, MPI_Abort(1, MPI_COMM_WORLD));
+   ASSERT(argc >= 3, MPI_Abort(1, MPI_COMM_WORLD));
 
 #ifdef DEBUG
    // TODO REMODE
@@ -126,7 +187,7 @@ void Cache::orient(int *argc_ptr, char ***argv_ptr) {
 
    // Grab the job to cache node pairings list. 
    std::string mapping(argv[2]);
-   replace_commas(mapping);
+   //replace_commas(mapping);
    std::vector<uint32_t> map_vec;
    stringlist_to_vector(map_vec, mapping);
 

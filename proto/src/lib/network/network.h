@@ -1,5 +1,5 @@
-#ifndef __NETWORK__HEADER__H__
-#define __NETWORK__HEADER__H__
+#ifndef __NETWORK__H__
+#define __NETWORK__H__
 
 #include <mpi.h>
 #include <stdint.h>
@@ -16,15 +16,6 @@
 #define MAX_KEY_SIZE 4096
 #define MAX_VALUE_SIZE 32768
 #define MAX_EXEC_NAME_SIZE 255
-
-#define ASSERT_TRUE(expression, todo) {\
-   if (!(expression)) {\
-      perror("\n!!! ASSERT FAILED !!!\n\tError ");\
-      fprintf(stderr, "\tFile : \"%s\"\n\tFunction : \"%s\"\n\t"\
-            "Line : %d\n\n", __FILE__, __func__, __LINE__);\
-      todo;\
-   }\
-}
 
 // Enums for different tags (message flags) between a CacheNode and the sender.
 enum MsgTag { PUT, PUT_ACK, GET, GET_ACK, PUSH, PUSH_ACK, DROP, DROP_ACK,
@@ -149,30 +140,19 @@ void print_msg_info(MsgInfo *msg_info);
 
 void print_msg_tag_handle(MsgTag tag);
 
-void vector_to_stringlist(std::vector<char> &vec, std::string &result);
-void stringlist_to_vector(std::vector<char> &vec, std::string &result);
-
-void vector_to_stringlist(std::vector<uint32_t> &vec, std::string &result);
-void stringlist_to_vector(std::vector<uint32_t> &vec, std::string &result);
-
-void replace_commas(std::string &str);
-void remove_commas(std::vector<char> &vec);
-
 // Sends a message in a non-blocking way, but ensures that the contents of the
 // message is buffered into the network before returning. In this way it ensures
 // that the request object can be reused.
-void send_msg(const void *buf, int count, MPI_Datatype datatype, int dest,
+int32_t send_msg(const void *buf, int count, MPI_Datatype datatype, int dest,
       int tag, MPI_Comm comm, MPI_Request *request);
 
 // Recvs a message in a blocking-way.
-void recv_msg(void *buf, int count, MPI_Datatype datatype, int source, int tag,
+int32_t recv_msg(void *buf, int count, MPI_Datatype datatype, int source, int tag,
       MPI_Comm comm, MPI_Status *status);
 
 // Loops until the message content associated with the request object has been
 // successfully buffered into the network, at which point the request object is
 // deallocated and the call returns.
 void wait_for_send(MPI_Request *request);
-
-void get_timestamp(uint64_t *timestamp);
 
 #endif

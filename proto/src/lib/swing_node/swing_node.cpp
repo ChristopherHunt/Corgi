@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include "utils/utils.h"
 #include "swing_node.h"
 
 SwingNode::SwingNode() {
@@ -8,9 +9,6 @@ SwingNode::SwingNode() {
 
    // Determine where this node is in the system.
    orient();
-
-   // Defines MPI datatypes within this object.
-   //define_datatypes();
 
    // Allocates data structures within this object.
    allocate();
@@ -26,7 +24,7 @@ SwingNode::~SwingNode() {
 
 void SwingNode::allocate() {
    buf = (uint8_t *)calloc(INITIAL_BUF_SIZE, sizeof(uint8_t));
-   ASSERT_TRUE(buf != NULL, MPI_Abort(MPI_COMM_WORLD, 1));
+   ASSERT(buf != NULL, MPI_Abort(MPI_COMM_WORLD, 1));
 }
 
 void SwingNode::handle_put() {
@@ -75,6 +73,9 @@ void SwingNode::handle_push() {
    printf("SwingNode %d\n", local_rank);
    print_msg_info(&msg_info);
 #endif
+
+   fprintf(stderr, "handle_push not implemented on swing_node!\n");
+   ASSERT(1 == 0, MPI_Abort(1, MPI_COMM_WORLD));
 }
 
 void SwingNode::handle_push_ack() {
@@ -83,6 +84,9 @@ void SwingNode::handle_push_ack() {
    printf("SwingNode %d\n", local_rank);
    print_msg_info(&msg_info);
 #endif
+
+   fprintf(stderr, "handle_push_ack not implemented on swing_node!\n");
+   ASSERT(1 == 0, MPI_Abort(1, MPI_COMM_WORLD));
 }
 
 void SwingNode::handle_drop() {
@@ -91,6 +95,9 @@ void SwingNode::handle_drop() {
    printf("SwingNode %d\n", local_rank);
    print_msg_info(&msg_info);
 #endif
+
+   fprintf(stderr, "handle_drop not implemented on swing_node!\n");
+   ASSERT(1 == 0, MPI_Abort(1, MPI_COMM_WORLD));
 }
 
 void SwingNode::handle_drop_ack() {
@@ -99,6 +106,9 @@ void SwingNode::handle_drop_ack() {
    printf("SwingNode %d\n", local_rank);
    print_msg_info(&msg_info);
 #endif
+
+   fprintf(stderr, "handle_drop_ack not implemented on swing_node!\n");
+   ASSERT(1 == 0, MPI_Abort(1, MPI_COMM_WORLD));
 }
 
 void SwingNode::handle_forward() {
@@ -141,7 +151,7 @@ void SwingNode::handle_spawn_job() {
          msg_info.comm, &status);
 
    // Ensure that the message is the correct size.
-   ASSERT_TRUE(msg_info.count == sizeof(SpawnNodesTemplate),
+   ASSERT(msg_info.count == sizeof(SpawnNodesTemplate),
          MPI_Abort(MPI_COMM_WORLD, 1));
 
 #ifdef DEBUG
@@ -155,7 +165,7 @@ void SwingNode::handle_spawn_job() {
    // There must already have been a CommsGroup entry in the job_to_comms
    // map for this job number (either from cache node creation or from cache
    // node splitting / regrouping in a previous step).
-   ASSERT_TRUE(job_to_comms.count(job_num) != 0, MPI_Abort(MPI_COMM_WORLD, 1));
+   ASSERT(job_to_comms.count(job_num) != 0, MPI_Abort(MPI_COMM_WORLD, 1));
    MPI_Comm cache_comm = job_to_comms[job_num].cache;
 
    int comm_size;
@@ -213,7 +223,7 @@ void SwingNode::handle_spawn_cache() {
    // Create an array that maps each cache node to its corresponding
    // coordinator swing node, and pass that to the nodes upon spawning.
    char *argv[2];
-   argv[0] = &mapping[0];
+   argv[0] = (char *)mapping_str.c_str();
    argv[1] = NULL;
 
    // All swing nodes spawn the cache nodes.
@@ -222,7 +232,7 @@ void SwingNode::handle_spawn_cache() {
 
    // Ensure that this job does not have cache nodes already associated with
    // it.
-   ASSERT_TRUE(job_to_comms.count(job_num) == 0, MPI_Abort(MPI_COMM_WORLD, 1));
+   ASSERT(job_to_comms.count(job_num) == 0, MPI_Abort(MPI_COMM_WORLD, 1));
 
    // Update bookkeeping.
    CommGroup job_comm_group;
@@ -242,6 +252,9 @@ void SwingNode::handle_exit() {
    printf("SwingNode %d\n", local_rank);
    print_msg_info(&msg_info);
 #endif
+
+   fprintf(stderr, "handle_exit not implemented on swing_node!\n");
+   ASSERT(1 == 0, MPI_Abort(1, MPI_COMM_WORLD));
 }
 
 void SwingNode::handle_requests() {
@@ -314,7 +327,7 @@ void SwingNode::handle_requests() {
                printf("===== DEFAULT =====\n");
                printf("SwingNode %d\n", local_rank);
                print_msg_info(&msg_info);
-               ASSERT_TRUE(1 == 0, MPI_Abort(MPI_COMM_WORLD, 1));
+               ASSERT(1 == 0, MPI_Abort(MPI_COMM_WORLD, 1));
                break;
          }
       }
