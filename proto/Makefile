@@ -3,26 +3,44 @@ host_file := config/hosts.txt
 
 export CXX_DEBUG_FLAGS
 
+# Enumeration of all of the libraries to compile for the project
 lib_cache_api := src/lib/cache_api
 lib_leader_node := src/lib/leader_node
 lib_swing_node := src/lib/swing_node
 lib_cache_node := src/lib/cache_node
 lib_policy := src/lib/policy
+lib_network := src/lib/network
 lib_utils := src/lib/utils
 
-libraries := $(lib_cache_api) $(lib_leader_node) $(lib_swing_node)\
-			 $(lib_cache_node) $(lib_policy) $(lib_utils) 
+# Enumeration of all of the tests to run for the project
+test_utils := test/utils_test
 
+# Enumeration of all of the executables for the project
 leader_layer := src/app/leader_layer
 swing_layer := src/app/swing_layer
 cache_layer := src/app/cache_layer
 job_layer := src/app/job_layer
  
+# List containing all of the user libraries for the project
+libraries := $(lib_cache_api) $(lib_leader_node) $(lib_swing_node)\
+			 $(lib_cache_node) $(lib_policy) $(lib_network) $(lib_utils)
+
+# List containing all of the user tests for the project
+tests := $(test_utils)
+
+# List of all of the executables for the project
 apps := $(leader_layer) $(swing_layer) $(cache_layer) $(job_layer)
 
-dirs := $(libraries) $(apps)
+dirs := $(libraries) $(apps) $(tests)
 
-.PHONY: build cp_bins run $(apps) $(libraries)
+.PHONY: all build cp_bins run test $(dirs) $(apps) $(libraries) $(tests) 
+
+all: build test run
+
+test: $(tests)
+
+$(tests): build
+	$(MAKE) -s -C $@
 
 build: clean $(apps) cp_bins
 

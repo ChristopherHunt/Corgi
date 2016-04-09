@@ -17,16 +17,18 @@ CXXFLAGS := -O3 -std=c++0x
 
 GTEST_DIR := ../googletest
 TEST := simple_test
-SRC := simple_test.cpp
+SRC := $(TEST).cpp
 
-.PHONY: build build-lib build-src run clean fullclean
+.PHONY: all build build-lib build-src run clean fullclean
 
-build:
+all: clean build run
+
+build: clean
 	$(MAKE) -s -C $(GTEST_DIR) build
 	$(CXX) -isystem $(GTEST_DIR)/include -I$(GTEST_DIR) -pthread \
 		$(SRC) $(GTEST_DIR)/libgtest.a -o $(TEST)
 	
-run: clean build
+run:
 	./$(TEST)
 
 clean:
