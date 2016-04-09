@@ -9,7 +9,7 @@ else
 ifdef MPIICC
 CXX := mpiicc
 else
-$(error Neither Intel MPI nor MPICH installed, please install either)
+$(error Neither Intel MPI nor MPICH installed, please install either.)
 endif
 endif
 
@@ -17,15 +17,15 @@ CXXFLAGS := -O3 -std=c++0x
 
 INCLUDES := -I../../lib/
 
-OUTFILE := $(BIN) $(LIB)
+TO_BUILD := $(BIN) $(LIB)
 
 .PHONY: default clean
 
-default: $(OUTFILE)
+default: $(TO_BUILD)
 
 clean:
 	$(RM) *.o
-	$(RM) $(OUTFILE)
+	$(RM) $(TO_BUILD)
 
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) $(CXX_DEBUG_FLAGS) -o $@ -c $< $(INCLUDES)
