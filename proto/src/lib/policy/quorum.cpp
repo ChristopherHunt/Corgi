@@ -19,6 +19,7 @@ void Quorum::swing_node_handle_put(uint8_t *buf, MsgInfo *msg_info) {
    print_msg_info(msg_info);
 #endif
 
+   int result;
    PutTemplate *format = (PutTemplate *)buf;
    std::string key(format->key, format->key + format->key_size);
 
@@ -53,14 +54,12 @@ void Quorum::swing_node_handle_put(uint8_t *buf, MsgInfo *msg_info) {
    }
 
 #ifdef DEBUG
-   // TODO: REMOVE
    std::vector<JobNodeID> v = node->key_to_nodes[key];
    for (std::vector<JobNodeID>::iterator it = v.begin();
          it != v.end(); ++it) {
       printf("Swing node %d sees vector for key %s containing node %d of job %d with cache_node %d\n",
             node->local_rank, key.c_str(), it->job_node, it->job_num, it->cache_node);
    }
-   //
 #endif
 
    MPI_Request request;
@@ -76,8 +75,9 @@ void Quorum::swing_node_handle_put(uint8_t *buf, MsgInfo *msg_info) {
             printf("SwingNode %d sending PUT for key %s to SwingNode %d!\n",
                   node->local_rank, key.c_str(), i);
 #endif
-            send_msg(buf, sizeof(PutTemplate), MPI_UINT8_T, i, PUT,
+            result = send_msg(buf, sizeof(PutTemplate), MPI_UINT8_T, i, PUT,
                   swing_comm, &request);
+            ASSERT(result == MPI_SUCCESS, MPI_Abort(MPI_COMM_WORLD, 1));
          }
       }
    }
@@ -85,29 +85,9 @@ void Quorum::swing_node_handle_put(uint8_t *buf, MsgInfo *msg_info) {
    // This is currently setup to immediately return without having the other
    // swing nodes propogate the updates to their child cache nodes. So this is
    // a W = 1, R = N policy currently. Update this later to be more flexible.
-   send_msg(buf, sizeof(PutAckTemplate), MPI_UINT8_T, msg_info->src, PUT_ACK,
-         msg_info->comm, &request);
-}
-
-void Quorum::cache_node_handle_put(uint8_t *buf, MsgInfo *msg_info) {
-#ifdef DEBUG
-   printf("CACHE_NODE handle_put\n");
-   print_msg_info(msg_info);
-#endif
-
-   // Parse the Put message within buf, and add it to the cache.
-   PutTemplate *format = (PutTemplate *)buf;
-   std::string key(format->key, format->key + format->key_size);
-
-   Parcel parcel;
-   parcel.timestamp = format->timestamp;
-   parcel.value = std::string(format->value, format->value + format->value_size);
-   cache[key] = parcel;
-
-   // Send msg to parent swing node.
-   MPI_Request request;
-   send_msg(buf, msg_info->count, MPI_UINT8_T, node->coord_rank, PUT,
-         node->parent_comm, &request);
+   result = send_msg(buf, sizeof(PutAckTemplate), MPI_UINT8_T, msg_info->src,
+                     PUT_ACK, msg_info->comm, &request);
+   ASSERT(result == MPI_SUCCESS, MPI_Abort(MPI_COMM_WORLD, 1));
 }
 
 void Quorum::swing_node_handle_put_ack(uint8_t *buf, MsgInfo *msg_info) {
@@ -116,30 +96,12 @@ void Quorum::swing_node_handle_put_ack(uint8_t *buf, MsgInfo *msg_info) {
 #endif
 }
 
-void Quorum::cache_node_handle_put_ack(uint8_t *buf, MsgInfo *msg_info) {
-#ifdef DEBUG
-   printf("CACHE_NODE handle_put_ack\n");
-   print_msg_info(msg_info);
-#endif
-
-   // Parse the Put message within buf, and add it to the cache.
-   PutAckTemplate *format = (PutAckTemplate *)buf;
-   uint32_t job_num = format->job_num;
-   uint32_t job_node = format->job_node;
-
-   MPI_Comm job_comm = node->job_to_comms[job_num].job;
-
-   // Send msg to job node informing it that the put is complete.
-   MPI_Request request;
-   send_msg(buf, sizeof(PutAckTemplate), MPI_UINT8_T, job_node, PUT_ACK, job_comm,
-         &request);
-}
-
 void Quorum::swing_node_handle_get(uint8_t *buf, MsgInfo *msg_info) {
 #ifdef DEBUG
    printf("SWING_NODE handle_get\n");
    print_msg_info(msg_info);
 #endif
+   int result;
 
    GetTemplate *format = (GetTemplate *)buf;
    uint32_t job_num = format->job_num;
@@ -176,17 +138,18 @@ void Quorum::swing_node_handle_get(uint8_t *buf, MsgInfo *msg_info) {
 
    // Send the updated votes required amount to the calling cache_node.
    MPI_Request request;
-   send_msg(buf, sizeof(CensusTemplate), MPI_UINT8_T, msg_info->src, GET_ACK,
-         msg_info->comm, &request);
+   result = send_msg(buf, sizeof(CensusTemplate), MPI_UINT8_T, msg_info->src,
+                     GET_ACK, msg_info->comm, &request);
+   ASSERT(result == MPI_SUCCESS, MPI_Abort(MPI_COMM_WORLD, 1));
 
-   // Build forward request message to send to all cache nodes which are to
+   // Build push request message to send to all cache nodes which are to
    // participate in the voting.
-   ForwardTemplate *forward_format = (ForwardTemplate *)buf;
-   forward_format->job_num = job_num;
-   forward_format->job_node = job_node;
-   forward_format->key_size = key_size;
-   memcpy(forward_format->key, key.c_str(), key_size);
-   forward_format->cache_node = msg_info->src;
+   ForwardTemplate *push_format = (ForwardTemplate *)buf;
+   push_format->job_num = job_num;
+   push_format->job_node = job_node;
+   push_format->key_size = key_size;
+   memcpy(push_format->key, key.c_str(), key_size);
+   push_format->cache_node = msg_info->src;
 
    MPI_Comm comm = node->job_to_comms[job_num].cache;
    // Ping all cache nodes which will participate in this quorum poll.
@@ -199,15 +162,83 @@ void Quorum::swing_node_handle_get(uint8_t *buf, MsgInfo *msg_info) {
          printf("-- ENTRY -- \n\tjob_num: %d\n\tjob_node: %d\n\tcache_node: %d\n",
                entry.job_num, entry.job_node, entry.cache_node);
 #endif
-         send_msg(buf, sizeof(ForwardTemplate), MPI_UINT8_T, entry.cache_node,
-               FORWARD, comm, &request);
+         result = send_msg(buf, sizeof(ForwardTemplate), MPI_UINT8_T,
+                           entry.cache_node, PUSH, comm, &request);
+         ASSERT(result == MPI_SUCCESS, MPI_Abort(MPI_COMM_WORLD, 1));
       }
 #ifdef DEBUG
       else {
-         printf("NOT SENDING FORWARD REQUEST TO CACHENODE %d\n", msg_info->src);
+         printf("NOT SENDING PUSH REQUEST TO CACHENODE %d\n", msg_info->src);
       }
 #endif
    }
+}
+
+void Quorum::swing_node_handle_get_ack(uint8_t *buf, MsgInfo *msg_info) {
+#ifdef DEBUG
+   printf("SWING_NODE handle_get_ack\n");
+   print_msg_info(msg_info);
+#endif
+}
+
+void Quorum::swing_node_handle_push(uint8_t *buf, MsgInfo *msg_info) {
+#ifdef DEBUG
+   printf("SWING_NODE handle_push\n");
+   print_msg_info(msg_info);
+#endif
+}
+
+void Quorum::swing_node_handle_push_ack(uint8_t *buf, MsgInfo *msg_info) {
+#ifdef DEBUG
+   printf("SWING_NODE handle_push_ack\n");
+   print_msg_info(msg_info);
+#endif
+}
+
+void Quorum::cache_node_handle_put(uint8_t *buf, MsgInfo *msg_info) {
+#ifdef DEBUG
+   printf("CACHE_NODE handle_put\n");
+   print_msg_info(msg_info);
+#endif
+
+   int result;
+
+   // Parse the Put message within buf, and add it to the cache.
+   PutTemplate *format = (PutTemplate *)buf;
+   std::string key(format->key, format->key + format->key_size);
+
+   Parcel parcel;
+   parcel.timestamp = format->timestamp;
+   parcel.value = std::string(format->value, format->value + format->value_size);
+   cache[key] = parcel;
+
+   // Send msg to parent swing node.
+   MPI_Request request;
+   result = send_msg(buf, msg_info->count, MPI_UINT8_T, node->coord_rank, PUT,
+         node->parent_comm, &request);
+   ASSERT(result == MPI_SUCCESS, MPI_Abort(MPI_COMM_WORLD, 1));
+}
+
+void Quorum::cache_node_handle_put_ack(uint8_t *buf, MsgInfo *msg_info) {
+#ifdef DEBUG
+   printf("CACHE_NODE handle_put_ack\n");
+   print_msg_info(msg_info);
+#endif
+
+   int result;
+
+   // Parse the Put message within buf, and add it to the cache.
+   PutAckTemplate *format = (PutAckTemplate *)buf;
+   uint32_t job_num = format->job_num;
+   uint32_t job_node = format->job_node;
+
+   MPI_Comm job_comm = node->job_to_comms[job_num].job;
+
+   // Send msg to job node informing it that the put is complete.
+   MPI_Request request;
+   result= send_msg(buf, sizeof(PutAckTemplate), MPI_UINT8_T, job_node, PUT_ACK,
+                    job_comm, &request);
+   ASSERT(result == MPI_SUCCESS, MPI_Abort(MPI_COMM_WORLD, 1));
 }
 
 void Quorum::cache_node_handle_get(uint8_t *buf, MsgInfo *msg_info) {
@@ -215,6 +246,8 @@ void Quorum::cache_node_handle_get(uint8_t *buf, MsgInfo *msg_info) {
    printf("CACHE_NODE handle_get\n");
    print_msg_info(msg_info);
 #endif
+
+   int result;
 
    GetTemplate *format = (GetTemplate *)buf;
 
@@ -240,15 +273,9 @@ void Quorum::cache_node_handle_get(uint8_t *buf, MsgInfo *msg_info) {
 
    // Pass on the GET message to this cache node's coordinator swing node.
    MPI_Request request;
-   send_msg(buf, msg_info->count, MPI_UINT8_T, node->coord_rank, GET,
+   result = send_msg(buf, msg_info->count, MPI_UINT8_T, node->coord_rank, GET,
          node->parent_comm, &request);
-}
-
-void Quorum::swing_node_handle_get_ack(uint8_t *buf, MsgInfo *msg_info) {
-#ifdef DEBUG
-   printf("SWING_NODE handle_get_ack\n");
-   print_msg_info(msg_info);
-#endif
+   ASSERT(result == MPI_SUCCESS, MPI_Abort(MPI_COMM_WORLD, 1));
 }
 
 void Quorum::cache_node_handle_get_ack(uint8_t *buf, MsgInfo *msg_info) {
@@ -332,26 +359,21 @@ void Quorum::cache_node_handle_get_ack(uint8_t *buf, MsgInfo *msg_info) {
 #endif
 }
 
-void Quorum::swing_node_handle_forward(uint8_t *buf, MsgInfo *msg_info) {
+void Quorum::cache_node_handle_push(uint8_t *buf, MsgInfo *msg_info) {
 #ifdef DEBUG
-   printf("SWING_NODE handle_forward\n");
+   printf("CACHE_NODE handle_push\n");
    print_msg_info(msg_info);
 #endif
-}
 
-void Quorum::cache_node_handle_forward(uint8_t *buf, MsgInfo *msg_info) {
-#ifdef DEBUG
-   printf("CACHE_NODE handle_forward\n");
-   print_msg_info(msg_info);
-#endif
+   int result;
 
    // Parse the message.
-   ForwardTemplate *forward_format = (ForwardTemplate *)buf;
-   uint32_t job_num = forward_format->job_num;
-   uint32_t job_node = forward_format->job_node;
-   uint32_t cache_node = forward_format->cache_node;
-   std::string key(forward_format->key, forward_format->key +
-         forward_format->key_size);
+   ForwardTemplate *push_format = (ForwardTemplate *)buf;
+   uint32_t job_num = push_format->job_num;
+   uint32_t job_node = push_format->job_node;
+   uint32_t cache_node = push_format->cache_node;
+   std::string key(push_format->key, push_format->key +
+         push_format->key_size);
    Parcel parcel;
 
    // Get the value corresponding to the specified key.
@@ -375,20 +397,14 @@ void Quorum::cache_node_handle_forward(uint8_t *buf, MsgInfo *msg_info) {
    get_format->timestamp = parcel.timestamp;
 
    MPI_Request request;
-   send_msg(buf, sizeof(GetAckTemplate), MPI_UINT8_T, cache_node, GET_ACK,
-         MPI_COMM_WORLD, &request);
+   result = send_msg(buf, sizeof(GetAckTemplate), MPI_UINT8_T, cache_node,
+                     GET_ACK, MPI_COMM_WORLD, &request);
+   ASSERT(result == MPI_SUCCESS, MPI_Abort(MPI_COMM_WORLD, 1));
 }
 
-void Quorum::swing_node_handle_forward_ack(uint8_t *buf, MsgInfo *msg_info) {
+void Quorum::cache_node_handle_push_ack(uint8_t *buf, MsgInfo *msg_info) {
 #ifdef DEBUG
-   printf("SWING_NODE handle_forward_ack\n");
-   print_msg_info(msg_info);
-#endif
-}
-
-void Quorum::cache_node_handle_forward_ack(uint8_t *buf, MsgInfo *msg_info) {
-#ifdef DEBUG
-   printf("CACHE_NODE handle_forward_ack\n");
+   printf("CACHE_NODE handle_push_ack\n");
    print_msg_info(msg_info);
 #endif
 }
@@ -397,6 +413,9 @@ void Quorum::send_job_node_get_ack(std::vector<GetReq>::iterator get_req_it) {
 #ifdef DEBUG
    printf("SEND_JOB_NODE_GET_ACK!\n");
 #endif
+
+   int result;
+
    std::vector<Parcel> census = get_req_it->census;
    Parcel winning_vote;
    winning_vote.timestamp = 0;
@@ -421,8 +440,9 @@ void Quorum::send_job_node_get_ack(std::vector<GetReq>::iterator get_req_it) {
    MPI_Comm job_comm = node->job_to_comms[format->job_num].job;
    MPI_Request request;
 
-   send_msg(node->buf, sizeof(GetAckTemplate), MPI_UINT8_T, format->job_node,
-         GET_ACK, job_comm, &request);
+   result = send_msg(node->buf, sizeof(GetAckTemplate), MPI_UINT8_T,
+                     format->job_node, GET_ACK, job_comm, &request);
+   ASSERT(result == MPI_SUCCESS, MPI_Abort(MPI_COMM_WORLD, 1));
 }
 
 void Quorum::handle_put() {
@@ -517,21 +537,21 @@ void Quorum::handle_get_ack() {
    }
 }
 
-void Quorum::handle_forward() {
+void Quorum::handle_push() {
    uint8_t *buf = node->buf;
    MsgInfo *msg_info = &(node->msg_info);
    MPI_Status *status = &(node->status);
 
-   recv_msg(buf, msg_info->count, MPI_UINT8_T, msg_info->src, FORWARD,
+   recv_msg(buf, msg_info->count, MPI_UINT8_T, msg_info->src, PUSH,
          msg_info->comm, status);
 
    switch (node_type) {
       case SWING:
-         swing_node_handle_forward(buf, msg_info);
+         swing_node_handle_push(buf, msg_info);
          break;
 
       case CACHE:
-         cache_node_handle_forward(buf, msg_info);
+         cache_node_handle_push(buf, msg_info);
          break;
 
       default:
@@ -540,7 +560,7 @@ void Quorum::handle_forward() {
    }
 }
 
-void Quorum::handle_forward_ack() {
+void Quorum::handle_push_ack() {
    uint8_t *buf = node->buf;
    MsgInfo *msg_info = &(node->msg_info);
    MPI_Status *status = &(node->status);
@@ -550,11 +570,11 @@ void Quorum::handle_forward_ack() {
 
    switch (node_type) {
       case SWING:
-         swing_node_handle_forward_ack(buf, msg_info);
+         swing_node_handle_push_ack(buf, msg_info);
          break;
 
       case CACHE:
-         cache_node_handle_forward_ack(buf, msg_info);
+         cache_node_handle_push_ack(buf, msg_info);
          break;
 
       default:

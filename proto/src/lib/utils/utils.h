@@ -20,6 +20,46 @@
    }\
 }
 
+// Struct to keep track of which communicators are associated with a given job
+// number.
+// swing -> the swing node communicator for this job
+// cache -> the cache node communicator for this job
+// job ---> the job node communicator for this job
+typedef struct CommGroup {
+   MPI_Comm swing;
+   MPI_Comm cache;
+   MPI_Comm job;
+} __attribute__((packed)) Comms;
+
+// Struct to keep track of a job node where:
+// job_num ----> the job number this job belongs to
+// job_node ---> the node number of the job within its MPI_COMM_WORLD
+// cache_node -> the cache node that services this job node.
+typedef struct JobNodeID {
+   uint32_t job_num;
+   uint32_t job_node;
+   uint32_t cache_node;
+
+   bool operator== (const JobNodeID& other) {
+      return this->job_num == other.job_num &&
+         this->job_node == other.job_node;
+   }
+} __attribute__((packed)) JobNodeID;
+
+// Struct to hold a vote for a quroum poll. This is used when nodes consult one
+// another to determine which of their values for a given key is the most
+// recent. The struct includes the following fields:
+// timestamp -> the timestamp of the voter's value
+// value -----> the value being presented for consideration
+typedef struct Parcel {
+   uint64_t timestamp;
+   std::string value;
+
+   bool operator< (const Parcel& other) {
+      return this->timestamp < other.timestamp;
+   }
+} Parcel;
+
 // Converts a vector of characters into a space deliminated string.
 void vector_to_stringlist(std::vector<char> &vec, std::string &result);
 

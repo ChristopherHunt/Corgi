@@ -83,8 +83,7 @@ void CacheNode::handle_push() {
    print_msg_info(&msg_info);
 #endif
 
-   fprintf(stderr, "handle_push not implemented on cache_node!\n");
-   ASSERT(1 == 0, MPI_Abort(MPI_COMM_WORLD, 1));
+   policy->handle_push();
 }
 
 void CacheNode::handle_push_ack() {
@@ -94,8 +93,7 @@ void CacheNode::handle_push_ack() {
    print_msg_info(&msg_info);
 #endif
 
-   fprintf(stderr, "handle_push_ack not implemented on cache_node!\n");
-   ASSERT(1 == 0, MPI_Abort(MPI_COMM_WORLD, 1));
+   policy->handle_push_ack();
 }
 
 void CacheNode::handle_drop() {
@@ -118,26 +116,6 @@ void CacheNode::handle_drop_ack() {
 
    fprintf(stderr, "handle_drop_ack not implemented on cache_node!\n");
    ASSERT(1 == 0, MPI_Abort(MPI_COMM_WORLD, 1));
-}
-
-void CacheNode::handle_forward() {
-#ifdef DEBUG
-   printf("===== FORWARD =====\n");
-   printf("CacheNode %d\n", local_rank);
-   print_msg_info(&msg_info);
-#endif
-
-   policy->handle_forward();
-}
-
-void CacheNode::handle_forward_ack() {
-#ifdef DEBUG
-   printf("===== FORWARD_ACK =====\n");
-   printf("CacheNode %d\n", local_rank);
-   print_msg_info(&msg_info);
-#endif
-
-   policy->handle_forward_ack();
 }
 
 void CacheNode::handle_exit() {
@@ -197,14 +175,6 @@ void CacheNode::handle_requests() {
                handle_drop_ack();
                break;
 
-            case FORWARD:
-               handle_forward();
-               break;
-
-            case FORWARD_ACK:
-               handle_forward_ack();
-               break;
-
             case SPAWN_JOB:
                handle_spawn_job();
                break;
@@ -231,22 +201,20 @@ void CacheNode::handle_spawn_job() {
    print_msg_info(&msg_info);
 #endif
 
-   recv_msg(buf, msg_info.count, MPI_UINT8_T, msg_info.src, SPAWN_JOB,
+   int result;
+
+   result = recv_msg(buf, msg_info.count, MPI_UINT8_T, msg_info.src, SPAWN_JOB,
          msg_info.comm, &status);
+   ASSERT(result == MPI_SUCCESS, MPI_Abort(MPI_COMM_WORLD, 1));
 
-   ASSERT(msg_info.count == sizeof(SpawnNodesTemplate),
-         MPI_Abort(MPI_COMM_WORLD, 1));
-
+   // Parse the template to determine how to spawn the job
    SpawnNodesTemplate *format = (SpawnNodesTemplate *)buf;
    uint32_t job_num = format->job_num;
    uint16_t node_count = format->count;
    uint16_t mapping_size = format->mapping_size;
    std::string mapping_str(format->mapping, format->mapping + mapping_size);
 
-   // Convert string mapping to vector
-   std::vector<char> mapping;
-   stringlist_to_vector(mapping, mapping_str);
-
+   // Parse out the job's executable name
    uint8_t exec_size = format->exec_size;
    std::string exec_name(format->exec_name, format->exec_name + exec_size);
 
@@ -267,16 +235,25 @@ void CacheNode::handle_spawn_job() {
    printf("CacheNode %d exec_name: %s\n", local_rank, exec_name.c_str());
 #endif
 
+   // Convert string mapping to vector
+   // TODO: Use this to create a mapping of job node #'s to cache node #'s
+   /*
+   std::vector<char> mapping;
+   stringlist_to_vector(mapping, mapping_str);
+   */
+
    std::stringstream ss;
    ss << job_num;
-   char *job_num_array = (char *)ss.str().c_str();
+   char *job_num_str = (char *)ss.str().c_str();
 
    // Create an array that maps each job node to its corresponding cache node.
    char *argv[3];
-   argv[0] = job_num_array;
+   argv[0] = job_num_str;
    argv[1] = (char *)(mapping_str.c_str());
    argv[2] = NULL;
 
+   // Duplicate MPI_COMM_WORLD so that we don't extend it again and again with
+   // newly spawned jobs.
    MPI_Comm comm;
    MPI_Comm_dup(MPI_COMM_WORLD, &comm);
 
@@ -289,8 +266,8 @@ void CacheNode::handle_spawn_job() {
    job_comm_group.swing = msg_info.comm;
    job_comm_group.cache = MPI_COMM_WORLD;
    job_comm_group.job = comm;
-
    job_to_comms[job_num] = job_comm_group;
+
 #ifdef DEBUG
    printf("CacheNode %d finished spawning Job %d\n", local_rank, job_num);
 #endif

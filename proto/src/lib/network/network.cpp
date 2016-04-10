@@ -44,12 +44,6 @@ void print_msg_tag_handle(MsgTag tag) {
       case DROP_ACK:
          printf("DROP_ACK");
          break;
-      case FORWARD:
-         printf("FORWARD");
-         break;
-      case FORWARD_ACK:
-         printf("FORWARD_ACK");
-         break;
       case SPAWN_JOB:
          printf("SPAWN_JOB");
          break;
@@ -65,7 +59,7 @@ void print_msg_tag_handle(MsgTag tag) {
    }
 }
 
-int32_t send_msg(const void *buf, int count, MPI_Datatype datatype, int dest,
+int send_msg(const void *buf, int count, MPI_Datatype datatype, int dest,
       int tag, MPI_Comm comm, MPI_Request *request) {
 #ifdef DEBUG
    printf("send_msg:\n");
@@ -75,15 +69,16 @@ int32_t send_msg(const void *buf, int count, MPI_Datatype datatype, int dest,
    printf("\tdest: %d\n", dest);
 #endif
 
-   MPI_Isend(buf, count, datatype, dest, tag, comm, request);
+   int result;
+
+   result = MPI_Isend(buf, count, datatype, dest, tag, comm, request);
    wait_for_send(request);
-   return count * sizeof(datatype);
+   return result;
 }
 
-int32_t recv_msg(void *buf, int count, MPI_Datatype datatype, int source, int tag,
+int recv_msg(void *buf, int count, MPI_Datatype datatype, int source, int tag,
       MPI_Comm comm, MPI_Status *status) {
-   MPI_Recv(buf, count, datatype, source, tag, comm, status);
-   return count * sizeof(datatype);
+   return MPI_Recv(buf, count, datatype, source, tag, comm, status);
 }
 
 void wait_for_send(MPI_Request *request) {

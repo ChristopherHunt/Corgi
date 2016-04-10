@@ -7,23 +7,37 @@
 
 class Cache {
    private:
-      uint32_t job_num;
+      uint32_t job_num;    // Job number this cache instance services
 
-      int local_size;
-      int local_rank;
-      int parent_size;
-      int parent_rank;
-      int coord_rank;
+      int local_size;      // Size of job.
+      int local_rank;      // Rank of this job node within the job itself.
+      int parent_size;     // Size of the parent cache communicator.
+      int parent_rank;     // Rank of this node within the parent intercomm.
+      int coord_rank;      // Rank of the parent cache node to talk through.
 
-      MPI_Comm parent_comm;
+      uint8_t *buf;        // Byte buffer for sending and receiving messages.
 
+      MPI_Comm parent_comm;   // Cache comm that spawned this job.
+
+      // Allocates any needed memory on the heap.
       void allocate();
 
+      // Allows the cache to determine where it lies within the cache ecosystem.
+      // Also, modifies the argc and argv values by removing all the cache
+      // specified entries from the listing.
       void orient(int *argc_ptr, char ***argv_ptr);
+      
+      // Packs buf with the contents required for a proper put call.
+      void pack_put(const std::string& key, const std::string& value);
 
-      uint8_t *buf;
+      // Packs buf with the contents required for a proper get call.
+      void pack_get(const std::string& key);
 
    public:
+      // Constructor that takes in the program's argc and argv references. In
+      // the cache ecosystem there is cache specific arguments in these command
+      // line arguments which get interpretted and striped out prior to
+      // returning to the caller.
       Cache(int *argc_ptr, char ***argv_ptr);
 
       ~Cache();

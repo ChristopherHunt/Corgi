@@ -27,37 +27,29 @@ Cache::~Cache() {
 bool Cache::put(const std::string& key, const std::string& value) {
    int32_t result;
 
-   PutTemplate *format = (PutTemplate *)buf;
-   format->job_num = job_num;
-   format->job_node = local_rank;
-   format->cache_node = coord_rank;
-   format->key_size = key.size();
-   memcpy(format->key, key.c_str(), key.size());
-   format->value_size = value.size();
-   memcpy(format->value, value.c_str(), value.size());
-   get_timestamp(&(format->timestamp));
-
    MPI_Request request;
    MPI_Status status;
+
+   // Pack the put message into buf prior to sending.
+   pack_put(key, value);
 
 #ifdef DEBUG
    printf("Job %d Rank %d calling put on %s/%s!\n", job_num, local_rank, key.c_str(), value.c_str());
 #endif
 
    result = send_msg(buf, sizeof(PutTemplate), MPI_UINT8_T, coord_rank, PUT,
-                     parent_comm, &request);
+         parent_comm, &request);
 
    if (result != sizeof(PutTemplate)) {
       return false;
    }
 
-   // TODO: FIX THIS ISSUE -- WE COULD HAVE 2 MISALIGNED PUT_ACK RECV'S HERE
-   // WHEN WE MOVE TO NON-BLOCKING PUTS. ALSO, THIS TIES UP THE JOB NODE
-   // NEEDLESSLY, SO SHOULD PROBABLY QUEUE UP THE BLOCKING PUT_ACK REQUESTS AND
-   // ACT ON THEM AS THEY COME IN.
+   // Assuming this cache is not doing any non-blocking calls, and as a result
+   // this PUT_ACK is guaranteed to be the ack for the send we just made. This
+   // assumption would not hold if this cache did non-blocking IO.
    result = recv_msg(buf, sizeof(PutAckTemplate), MPI_UINT8_T, coord_rank,
-                     PUT_ACK, parent_comm, &status);
-   
+         PUT_ACK, parent_comm, &status);
+
    return (result == sizeof(PutAckTemplate)) ? true : false;
 }
 
@@ -73,15 +65,11 @@ bool Cache::put(const std::string& key, const std::string& value) {
 bool Cache::get(const std::string& key, std::string& value) {
    int32_t result;
 
-   GetTemplate *format = (GetTemplate *)buf;
-   format->job_num = job_num;
-   format->job_node = local_rank;
-   format->key_size = key.size();
-   memcpy(format->key, key.c_str(), key.size());
-   get_timestamp(&(format->timestamp));
-
    MPI_Request request;
    MPI_Status status;
+
+   // Pack the get message into buf prior to sending.
+   pack_get(key);
 
 #ifdef DEBUG
    printf("Job %d Rank %d calling get on key %s!\n", job_num, local_rank, key.c_str());
@@ -90,12 +78,12 @@ bool Cache::get(const std::string& key, std::string& value) {
    send_msg(buf, sizeof(GetTemplate), MPI_UINT8_T, coord_rank, GET,
          parent_comm, &request);
 
-   // TODO: FIX THIS ISSUE -- WE COULD HAVE 2 MISALIGNED GET_ACK RECV'S HERE
-   // WHEN WE GO TO NON-BLOCKING GET. ALSO, THIS TIES UP THE JOB NODE
-   // NEEDLESSLY, SO SHOULD PROBABLY QUEUE UP THE BLOCKING GET_ACK REQUESTS AND
-   // ACT ON THEM AS THEY COME IN.
    result = recv_msg(buf, sizeof(GetAckTemplate), MPI_UINT8_T, coord_rank,
-                     GET_ACK, parent_comm, &status);
+         GET_ACK, parent_comm, &status);
+
+   if (result != sizeof(PutTemplate)) {
+      return false;
+   }
 
    GetAckTemplate *temp = (GetAckTemplate *)buf;
 
@@ -118,7 +106,7 @@ bool Cache::pull(const std::string& key, uint32_t node_id) {
 }
 
 bool Cache::scatter(const std::string& key,
-   const std::vector<uint32_t>& node_ids) {
+      const std::vector<uint32_t>& node_ids) {
 
    fprintf(stderr, "scatter not implemented!\n");
    ASSERT(1 == 0, MPI_Abort(1, MPI_COMM_WORLD));
@@ -126,7 +114,7 @@ bool Cache::scatter(const std::string& key,
 }
 
 bool Cache::gather(const std::string& key,
-   const std::vector<uint32_t>& node_ids) {
+      const std::vector<uint32_t>& node_ids) {
 
    fprintf(stderr, "gather not implemented!\n");
    ASSERT(1 == 0, MPI_Abort(1, MPI_COMM_WORLD));
@@ -216,4 +204,25 @@ void Cache::orient(int *argc_ptr, char ***argv_ptr) {
    printf("Job Num: %d Job node %d: team cache node: %d\n", job_num, local_rank,
          coord_rank);
 #endif
+}
+
+void Cache::pack_put(const std::string& key, const std::string& value) {
+   PutTemplate *format = (PutTemplate *)buf;
+   format->job_num = job_num;
+   format->job_node = local_rank;
+   format->cache_node = coord_rank;
+   format->key_size = key.size();
+   memcpy(format->key, key.c_str(), key.size());
+   format->value_size = value.size();
+   memcpy(format->value, value.c_str(), value.size());
+   get_timestamp(&(format->timestamp));
+}
+
+void Cache::pack_get(const std::string& key) {
+   GetTemplate *format = (GetTemplate *)buf;
+   format->job_num = job_num;
+   format->job_node = local_rank;
+   format->key_size = key.size();
+   memcpy(format->key, key.c_str(), key.size());
+   get_timestamp(&(format->timestamp));
 }

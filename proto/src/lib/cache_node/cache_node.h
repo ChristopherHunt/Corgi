@@ -26,17 +26,21 @@ class CacheNode : public virtual Node {
       // Allocates space for dynamic data structures within the object.
       void allocate();
 
-      // Handle the case where another node wants to connect to this node's
-      // TCP socket (TODO: NOT SURE IF THIS IS FLAG IS NEEDED, NEED TO READ
-      // MORE).
-      void handle_connect();
-
+      // Handles incoming messages requesting to "put" a key/value pair into the
+      // cache.
       void handle_put();
 
+      // Handle acknowledgements to a "put" message which may have propogated
+      // through the cache.
+      // TODO: NOT SURE IF THIS IS NEEDED IN THE CACHE LAYER ANYMORE
       void handle_put_ack();
 
+      // Handles incoming messages request to "get" a value from the cache
+      // corresponding to a specific key.
       void handle_get();
 
+      // Handle acknowledgements to a "get" message which may have propogated
+      // through the cache.
       void handle_get_ack();
 
       void handle_push();
@@ -46,10 +50,6 @@ class CacheNode : public virtual Node {
       void handle_drop();
 
       void handle_drop_ack();
-
-      void handle_forward();
-
-      void handle_forward_ack();
 
       void handle_spawn_job();
 

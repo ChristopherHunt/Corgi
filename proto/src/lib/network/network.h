@@ -19,7 +19,7 @@
 
 // Enums for different tags (message flags) between a CacheNode and the sender.
 enum MsgTag { PUT, PUT_ACK, GET, GET_ACK, PUSH, PUSH_ACK, DROP, DROP_ACK,
-   FORWARD, FORWARD_ACK, SPAWN_JOB, SPAWN_CACHE, EXIT };
+   SPAWN_JOB, SPAWN_CACHE, EXIT };
 
 // Struct to keep track of messages from other nodes which are waiting to be
 // tended to.
@@ -105,49 +105,22 @@ typedef struct ForwardTemplate {
    uint32_t cache_node;
 } __attribute__((packed)) ForwardTemplate;
 
-// Struct to keep track of which communicators are associated with a given job
-// number.
-// swing -> the swing node communicator for this job
-// cache -> the cache node communicator for this job
-// job ---> the job node communicator for this job
-typedef struct CommGroup {
-   MPI_Comm swing;
-   MPI_Comm cache;
-   MPI_Comm job;
-} __attribute__((packed)) Comms;
-
-typedef struct JobNodeID {
-   uint32_t job_num;
-   uint32_t job_node;
-   uint32_t cache_node;
-
-   bool operator== (const JobNodeID& other) {
-      return this->job_num == other.job_num &&
-         this->job_node == other.job_node;
-   }
-} __attribute__((packed)) JobNodeID;
-
-typedef struct Parcel {
-   uint64_t timestamp;
-   std::string value;
-
-   bool operator< (const Parcel& other) {
-      return this->timestamp < other.timestamp;
-   }
-} Parcel;
-
+// Prints the info associated with a message to stdout in a formatted way.
 void print_msg_info(MsgInfo *msg_info);
 
+// Prints the label associated with a given numeric message tag to stdout.
 void print_msg_tag_handle(MsgTag tag);
 
 // Sends a message in a non-blocking way, but ensures that the contents of the
 // message is buffered into the network before returning. In this way it ensures
-// that the request object can be reused.
-int32_t send_msg(const void *buf, int count, MPI_Datatype datatype, int dest,
+// that the request object can be reused when then function returns. Returns the
+// return value of the internal MPI_ISend call.
+int send_msg(const void *buf, int count, MPI_Datatype datatype, int dest,
       int tag, MPI_Comm comm, MPI_Request *request);
 
-// Recvs a message in a blocking-way.
-int32_t recv_msg(void *buf, int count, MPI_Datatype datatype, int source, int tag,
+// Recvs a message in a blocking-way. Returns the return value of the internal
+// MPI_Recv call.
+int recv_msg(void *buf, int count, MPI_Datatype datatype, int source, int tag,
       MPI_Comm comm, MPI_Status *status);
 
 // Loops until the message content associated with the request object has been

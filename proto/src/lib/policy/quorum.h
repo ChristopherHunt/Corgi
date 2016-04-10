@@ -9,13 +9,15 @@
 
 enum NodeType { SWING, CACHE };
 
+// Struct to encapsulate a "get" request.
 typedef struct GetReq {
-   uint32_t job_num;
-   uint32_t job_node;
-   uint32_t votes_req;
-   std::string key;
-   std::vector<Parcel> census;
+   uint32_t job_num;             // Number of the job the request is for
+   uint32_t job_node;            // Number of the job node requesting the get
+   uint32_t votes_req;           // Number of votes required for this request
+   std::string key;              // Key who's value is being looked up
+   std::vector<Parcel> census;   // List of votes on this request
 
+   // Overload the equals operator so it can compare 2 GetReq structs.
    bool operator== (const GetReq& other) {
       if (this->job_num != other.job_num) {
          return false;
@@ -46,18 +48,21 @@ class Quorum : public virtual Policy {
       void swing_node_handle_put_ack(uint8_t *buf, MsgInfo *info);
       void swing_node_handle_get(uint8_t *buf, MsgInfo *info);
       void swing_node_handle_get_ack(uint8_t *buf, MsgInfo *info);
-      void swing_node_handle_forward(uint8_t *buf, MsgInfo *info);
-      void swing_node_handle_forward_ack(uint8_t *buf, MsgInfo *info);
+      void swing_node_handle_push(uint8_t *buf, MsgInfo *info);
+      void swing_node_handle_push_ack(uint8_t *buf, MsgInfo *info);
 
       // Internal helper methods to handle the API cases for cache nodes.
       void cache_node_handle_put(uint8_t *buf, MsgInfo *info);
       void cache_node_handle_put_ack(uint8_t *buf, MsgInfo *info);
       void cache_node_handle_get(uint8_t *buf, MsgInfo *info);
       void cache_node_handle_get_ack(uint8_t *buf, MsgInfo *info);
-      void cache_node_handle_forward(uint8_t *buf, MsgInfo *info);
-      void cache_node_handle_forward_ack(uint8_t *buf, MsgInfo *info);
+      void cache_node_handle_push(uint8_t *buf, MsgInfo *info);
+      void cache_node_handle_push_ack(uint8_t *buf, MsgInfo *info);
 
    public:
+      // Constructor which associated this Quorum object with its encapsulating
+      // node reference object, as well as the type of node this friend is. This
+      // is needed so the Quorum object can access its friend's private members.
       Quorum(Node *node, NodeType node_type);
 
       virtual ~Quorum();
@@ -80,11 +85,11 @@ class Quorum : public virtual Policy {
 
       // Method to handle a FORWARD message received by either a cache or
       // swing node.
-      virtual void handle_forward();
+      virtual void handle_push();
 
       // Method to handle a FORWARD_ACK message received by either a cache or
       // swing node.
-      virtual void handle_forward_ack();
+      virtual void handle_push_ack();
 };
 
 #endif

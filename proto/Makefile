@@ -33,16 +33,20 @@ apps := $(leader_layer) $(swing_layer) $(cache_layer) $(job_layer)
 
 dirs := $(libraries) $(apps) $(tests)
 
-.PHONY: all build cp_bins run test $(dirs) $(apps) $(libraries) $(tests) 
+.PHONY: all build cp_bins dirs run test $(dirs) $(apps) $(libraries) $(tests) 
 
 all: build test run
+
+dirs:
+	mkdir -p lib
+	mkdir -p bin
 
 test: $(tests)
 
 $(tests): build
 	$(MAKE) -s -C $@
 
-build: clean $(apps) cp_bins
+build: clean dirs $(apps) cp_bins
 
 debug:
 	$(eval CXX_DEBUG_FLAGS += -D DEBUG)
@@ -53,11 +57,9 @@ $(apps): $(libraries)
 
 $(libraries):
 	$(MAKE) -s -C $@
-	mkdir -p lib
 	cp $@/*.a lib
 
 cp_bins:
-	mkdir -p bin
 	cp src/app/leader_layer/leader_layer bin
 	cp src/app/swing_layer/swing_layer bin
 	cp src/app/cache_layer/cache_layer bin

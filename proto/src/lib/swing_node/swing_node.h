@@ -34,10 +34,6 @@ class SwingNode : public virtual Node {
 
       void handle_get_ack();
 
-      void handle_forward();
-
-      void handle_forward_ack();
-
       void handle_drop();
 
       void handle_drop_ack();

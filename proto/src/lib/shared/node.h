@@ -5,6 +5,7 @@
 #include <mpi.h>
 #include <unordered_map>
 #include "network/network.h"
+#include "utils/utils.h"
 
 class Node {
    public:

@@ -198,6 +198,7 @@ void LeaderNode::spawn_cache_nodes(uint32_t job_num, MPI_Comm *comm, uint16_t co
 #ifdef DEBUG
    printf("LeaderNode sending SPAWN_CACHE of size %d\n", count);
 #endif
+   int result;
    int comm_size;
    MPI_Comm_remote_size(*comm, &comm_size);
 
@@ -206,12 +207,12 @@ void LeaderNode::spawn_cache_nodes(uint32_t job_num, MPI_Comm *comm, uint16_t co
    format->count = count;
 
    std::vector<uint32_t> vec = job_to_swing[job_num];
-   std::string result;
-   vector_to_stringlist(vec, result);
-   format->mapping_size = (uint16_t)result.size();
-   memcpy(format->mapping, result.c_str(), result.size());
+   std::string mapping;
+   vector_to_stringlist(vec, mapping);
+   format->mapping_size = (uint16_t)mapping.size();
+   memcpy(format->mapping, mapping.c_str(), mapping.size());
 
-   ASSERT(result.size() <= MAX_MAPPING_SIZE, MPI_Abort(MPI_COMM_WORLD, 1));
+   ASSERT(mapping.size() <= MAX_MAPPING_SIZE, MPI_Abort(MPI_COMM_WORLD, 1));
    int msg_size = sizeof(SpawnNodesTemplate);
 #ifdef DEBUG
    printf("job_num: %d\n", job_num);
@@ -230,7 +231,9 @@ void LeaderNode::spawn_cache_nodes(uint32_t job_num, MPI_Comm *comm, uint16_t co
 #ifdef DEBUG
       printf("Leader sending spawn cache msg to swing node %d\n", i);
 #endif
-      send_msg(buf, msg_size, MPI_UINT8_T, i, SPAWN_CACHE, *comm, &request);
+      result = send_msg(buf, msg_size, MPI_UINT8_T, i, SPAWN_CACHE, *comm,
+                        &request);
+      ASSERT(result == MPI_SUCCESS, MPI_Abort(MPI_COMM_WORLD, 1));
    }
 }
 
@@ -239,19 +242,21 @@ void LeaderNode::spawn_job_nodes(uint32_t job_num, std::string exec_name,
 
    ASSERT(comm != NULL, MPI_Abort(MPI_COMM_WORLD, 1));
 
+   int result;
+
    SpawnNodesTemplate *format = (SpawnNodesTemplate *)buf;
    format->job_num = job_num;
    format->count = count;
    std::vector<uint32_t> vec = job_to_cache[job_num];
-   std::string result;
-   vector_to_stringlist(vec, result);
-   format->mapping_size = (uint16_t)result.size();
-   memcpy(format->mapping, result.c_str(), result.size());
+   std::string mapping;
+   vector_to_stringlist(vec, mapping);
+   format->mapping_size = (uint16_t)mapping.size();
+   memcpy(format->mapping, mapping.c_str(), mapping.size());
    format->exec_size = (uint8_t)exec_name.size();
    memcpy(format->exec_name, exec_name.c_str(), exec_name.size());
    int msg_size = sizeof(SpawnNodesTemplate);
 
-   ASSERT(result.size() <= MAX_MAPPING_SIZE, MPI_Abort(MPI_COMM_WORLD, 1));
+   ASSERT(mapping.size() <= MAX_MAPPING_SIZE, MPI_Abort(MPI_COMM_WORLD, 1));
    ASSERT(exec_name.size() <= MAX_EXEC_NAME_SIZE, MPI_Abort(MPI_COMM_WORLD, 1));
 
 #ifdef DEBUG
@@ -263,5 +268,6 @@ void LeaderNode::spawn_job_nodes(uint32_t job_num, std::string exec_name,
    // amongst all of the swing nodes, but at this point the gains in runtime
    // efficiency are miniscule because we aren't starting jobs that often.
    MPI_Request request;
-   send_msg(buf, msg_size, MPI_UINT8_T, 0, SPAWN_JOB, *comm, &request);
+   result = send_msg(buf, msg_size, MPI_UINT8_T, 0, SPAWN_JOB, *comm, &request);
+   ASSERT(result == MPI_SUCCESS, MPI_Abort(MPI_COMM_WORLD, 1));
 }
