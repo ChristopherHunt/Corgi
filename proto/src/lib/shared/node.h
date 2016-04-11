@@ -21,7 +21,8 @@ class Node {
       // job communicators that are bound to this job_num.
       std::unordered_map<uint32_t, CommGroup> job_to_comms;
 
-      // TODO REMOVE
+      // Eventually want to remove this from this header file and incorporate it
+      // into only the node classes that need it.
       std::unordered_map<std::string, std::vector<JobNodeID> > key_to_nodes;
 
       // Struct to hold info about new messages.

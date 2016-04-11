@@ -7,7 +7,6 @@
 #include <deque>
 #include <vector>
 #include "policy/policy.h"
-#include "policy/quorum.h"
 #include "network/network.h"
 #include "shared/node.h"
 
@@ -30,9 +29,17 @@ class SwingNode : public virtual Node {
 
       void handle_put_ack();
 
+      void handle_put_local();
+
+      void handle_put_local_ack();
+
       void handle_get();
 
       void handle_get_ack();
+
+      void handle_get_local();
+
+      void handle_get_local_ack();
 
       void handle_drop();
 

@@ -18,8 +18,9 @@
 #define MAX_EXEC_NAME_SIZE 255
 
 // Enums for different tags (message flags) between a CacheNode and the sender.
-enum MsgTag { PUT, PUT_ACK, GET, GET_ACK, PUSH, PUSH_ACK, DROP, DROP_ACK,
-   SPAWN_JOB, SPAWN_CACHE, EXIT };
+enum MsgTag { PUT, PUT_ACK, PUT_LOCAL, PUT_LOCAL_ACK, GET, GET_ACK, GET_LOCAL,
+              GET_LOCAL_ACK, PUSH, PUSH_ACK, DROP, DROP_ACK, SPAWN_JOB,
+              SPAWN_CACHE, EXIT };
 
 // Struct to keep track of messages from other nodes which are waiting to be
 // tended to.
@@ -108,8 +109,8 @@ typedef struct ForwardTemplate {
 // Prints the info associated with a message to stdout in a formatted way.
 void print_msg_info(MsgInfo *msg_info);
 
-// Prints the label associated with a given numeric message tag to stdout.
-void print_msg_tag_handle(MsgTag tag);
+// Returns the label associated with a given numeric message tag to stdout.
+const char * msg_tag_handle(MsgTag tag);
 
 // Sends a message in a non-blocking way, but ensures that the contents of the
 // message is buffered into the network before returning. In this way it ensures

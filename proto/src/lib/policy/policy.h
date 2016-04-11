@@ -21,6 +21,30 @@ class Policy {
 
       virtual void handle_push() = 0;
       virtual void handle_push_ack() = 0;
+
+      virtual void handle_pull() = 0;
+      virtual void handle_pull_ack() = 0;
+
+      virtual void handle_scatter() = 0;
+      virtual void handle_scatter_ack() = 0;
+
+      virtual void handle_gather() = 0;
+      virtual void handle_gather_ack() = 0;
+
+      virtual void handle_drop() = 0;
+      virtual void handle_drop_ack() = 0;
+
+      virtual void handle_collect() = 0;
+      virtual void handle_collect_ack() = 0;
+
+      virtual void handle_put_local() = 0;
+      virtual void handle_put_local_ack() = 0;
+
+      virtual void handle_get_local() = 0;
+      virtual void handle_get_local_ack() = 0;
+
+      virtual void handle_get_owners() = 0;
+      virtual void handle_get_owners_ack() = 0;
 };
 
 #endif

@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <string>
 #include <vector>
+#include "network/network.h"
 
 class Cache {
    private:
@@ -26,6 +27,16 @@ class Cache {
       // Also, modifies the argc and argv values by removing all the cache
       // specified entries from the listing.
       void orient(int *argc_ptr, char ***argv_ptr);
+
+      // Sends a get request for the specified key with the lookup type
+      // specified by the tag being passed in. On success, true is returned and
+      // the value of value is set to the cached value.
+      bool handle_get(const std::string& key, std::string& value, MsgTag tag);
+
+      // Sends a put request for the specified key with the locality of the put
+      // specified by the tag being passed in. On success, true is returned.
+      bool handle_put(const std::string& key, const std::string& value,
+         MsgTag tag);
       
       // Packs buf with the contents required for a proper put call.
       void pack_put(const std::string& key, const std::string& value);

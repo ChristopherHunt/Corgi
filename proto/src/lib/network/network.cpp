@@ -4,9 +4,7 @@
 void print_msg_info(MsgInfo *msg_info) {
    MsgTag tag = (MsgTag)msg_info->tag;
    printf("===== MsgInfo =====\n");
-   printf("tag ---------> ");
-   print_msg_tag_handle(tag);
-   printf("\n");
+   printf("tag ---------> %s\n", msg_tag_handle(tag));
    printf("src ---------> %d\n", msg_info->src);
    printf("count (bytes): %d\n", msg_info->count);
 
@@ -18,44 +16,40 @@ void print_msg_info(MsgInfo *msg_info) {
    }
 }
 
-void print_msg_tag_handle(MsgTag tag) {
+const char * msg_tag_handle(MsgTag tag) {
    switch (tag) {
       case PUT:
-         printf("PUT");
-         break;
+         return "PUT";
       case PUT_ACK:
-         printf("PUT_ACK");
-         break;
+         return "PUT_ACK";
+      case PUT_LOCAL:
+         return "PUT_LOCAL";
+      case PUT_LOCAL_ACK:
+         return "PUT_LOCAL_ACK";
       case GET:
-         printf("GET");
-         break;
+         return "GET";
       case GET_ACK:
-         printf("GET_ACK");
-         break;
+         return "GET_ACK";
+      case GET_LOCAL:
+         return "GET_LOCAL";
+      case GET_LOCAL_ACK:
+         return "GET_LOCAL_ACK";
       case PUSH:
-         printf("PUSH");
-         break;
+         return "PUSH";
       case PUSH_ACK:
-         printf("PUSH_ACK");
-         break;
+         return "PUSH_ACK";
       case DROP:
-         printf("DROP");
-         break;
+         return "DROP";
       case DROP_ACK:
-         printf("DROP_ACK");
-         break;
+         return "DROP_ACK";
       case SPAWN_JOB:
-         printf("SPAWN_JOB");
-         break;
+         return "SPAWN_JOB";
       case SPAWN_CACHE:
-         printf("SPAWN_CACHE");
-         break;
+         return "SPAWN_CACHE";
       case EXIT:
-         printf("EXIT");
-         break;
+         return "EXIT";
       default:
-         printf("UNKNOWN FLAG!");
-         break;
+         return "UNKNOWN FLAG!";
    }
 }
 

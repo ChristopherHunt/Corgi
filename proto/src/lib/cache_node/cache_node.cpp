@@ -1,13 +1,15 @@
+#include <stdio.h>
 #include <stdlib.h>
+#include "network/network.h"
 #include "utils/utils.h"
+#include "policy/quorum/cache/cache_quorum.h"
 #include "cache_node.h"
 
 // TODO: NEED TO ADD FUNCTIONALITY TO ADD JOBS WITHOUT ADDING CACHE NODES.
 
 CacheNode::CacheNode(std::vector<uint32_t>& mapping) {
    // Set the policy for consistency and latency.
-   NodeType node_type = CACHE;
-   policy = new Quorum(this, node_type);
+   policy = new CacheQuorum(this);
 
    // Determine where this node is in the system.
    orient();
@@ -56,6 +58,26 @@ void CacheNode::handle_put_ack() {
    policy->handle_put_ack();
 }
 
+void CacheNode::handle_put_local() {
+#ifdef DEBUG
+   printf("===== PUT_LOCAL =====\n");
+   printf("CacheNode %d\n", local_rank);
+   print_msg_info(&msg_info);
+#endif
+
+   policy->handle_put_local();
+}
+
+void CacheNode::handle_put_local_ack() {
+#ifdef DEBUG
+   printf("===== PUT_LOCAL_ACK =====\n");
+   printf("CacheNode %d\n", local_rank);
+   print_msg_info(&msg_info);
+#endif
+
+   policy->handle_put_local_ack();
+}
+
 void CacheNode::handle_get() {
 #ifdef DEBUG
    printf("===== GET =====\n");
@@ -74,6 +96,26 @@ void CacheNode::handle_get_ack() {
 #endif
 
    policy->handle_get_ack();
+}
+
+void CacheNode::handle_get_local() {
+#ifdef DEBUG
+   printf("===== GET_LOCAL =====\n");
+   printf("CacheNode %d\n", local_rank);
+   print_msg_info(&msg_info);
+#endif
+
+   policy->handle_get_local();
+}
+
+void CacheNode::handle_get_local_ack() {
+#ifdef DEBUG
+   printf("===== GET_LOCAL_ACK =====\n");
+   printf("CacheNode %d\n", local_rank);
+   print_msg_info(&msg_info);
+#endif
+
+   policy->handle_get_local_ack();
 }
 
 void CacheNode::handle_push() {
@@ -151,12 +193,28 @@ void CacheNode::handle_requests() {
                handle_put_ack();
                break;
 
+            case PUT_LOCAL:
+               handle_put_local();
+               break;
+
+            case PUT_LOCAL_ACK:
+               handle_put_local_ack();
+               break;
+
             case GET:
                handle_get();
                break;
 
             case GET_ACK:
                handle_get_ack();
+               break;
+
+            case GET_LOCAL:
+               handle_get_local();
+               break;
+
+            case GET_LOCAL_ACK:
+               handle_get_local_ack();
                break;
 
             case PUSH:
@@ -185,7 +243,9 @@ void CacheNode::handle_requests() {
 
             default:
                printf("===== DEFAULT =====\n");
-               printf("CacheNode %d\n", local_rank);
+               fprintf(stderr, "CacheNode %d\n", local_rank);
+               fprintf(stderr, "Flag %s was not implemented!\n",
+                  msg_tag_handle((MsgTag)msg_info.tag));
                print_msg_info(&msg_info);
                ASSERT(1 == 0, MPI_Abort(MPI_COMM_WORLD, 1));
                break;
@@ -218,6 +278,11 @@ void CacheNode::handle_spawn_job() {
    uint8_t exec_size = format->exec_size;
    std::string exec_name(format->exec_name, format->exec_name + exec_size);
 
+   // Convert string mapping to vector
+   // TODO: Use this to create a mapping of job node #'s to cache node #'s
+   std::vector<char> mapping;
+   stringlist_to_vector(mapping, mapping_str);
+
 #ifdef DEBUG
    printf("CacheNode %d msg_info.count: %u\n", local_rank, msg_info.count);
    printf("CacheNode %d mapping_size: %d\n", local_rank, mapping_size);
@@ -235,12 +300,6 @@ void CacheNode::handle_spawn_job() {
    printf("CacheNode %d exec_name: %s\n", local_rank, exec_name.c_str());
 #endif
 
-   // Convert string mapping to vector
-   // TODO: Use this to create a mapping of job node #'s to cache node #'s
-   /*
-   std::vector<char> mapping;
-   stringlist_to_vector(mapping, mapping_str);
-   */
 
    std::stringstream ss;
    ss << job_num;

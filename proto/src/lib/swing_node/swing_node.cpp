@@ -1,11 +1,12 @@
 #include <stdlib.h>
+#include "network/network.h"
+#include "policy/quorum/swing/swing_quorum.h"
 #include "utils/utils.h"
 #include "swing_node.h"
 
 SwingNode::SwingNode() {
    // Set the policy for consistency and latency.
-   NodeType node_type = SWING; 
-   policy = new Quorum(this, node_type);
+   policy = new SwingQuorum(this);
 
    // Determine where this node is in the system.
    orient();
@@ -47,6 +48,26 @@ void SwingNode::handle_put_ack() {
    policy->handle_put_ack();
 }
 
+void SwingNode::handle_put_local() {
+#ifdef DEBUG
+   printf("===== PUT_LOCAL =====\n");
+   printf("SwingNode %d\n", local_rank);
+   print_msg_info(&msg_info);
+#endif
+
+   policy->handle_put_local();
+}
+
+void SwingNode::handle_put_local_ack() {
+#ifdef DEBUG
+   printf("===== PUT LOCAL ACK =====\n");
+   printf("SwingNode %d\n", local_rank);
+   print_msg_info(&msg_info);
+#endif
+
+   policy->handle_put_local_ack();
+}
+
 void SwingNode::handle_get() {
 #ifdef DEBUG
    printf("===== GET =====\n");
@@ -65,6 +86,26 @@ void SwingNode::handle_get_ack() {
 #endif
 
    policy->handle_get_ack();
+}
+
+void SwingNode::handle_get_local() {
+#ifdef DEBUG
+   printf("===== GET LOCAL =====\n");
+   printf("SwingNode %d\n", local_rank);
+   print_msg_info(&msg_info);
+#endif
+
+   policy->handle_get_local();
+}
+
+void SwingNode::handle_get_local_ack() {
+#ifdef DEBUG
+   printf("===== GET LOCAL ACK =====\n");
+   printf("SwingNode %d\n", local_rank);
+   print_msg_info(&msg_info);
+#endif
+
+   policy->handle_get_local_ack();
 }
 
 void SwingNode::handle_push() {
@@ -197,11 +238,13 @@ void SwingNode::handle_spawn_cache() {
    printf("SwingNode %d spawn count: %d\n", local_rank, node_count);
    printf("SwingNode %d mapping: %s\n", local_rank, mapping_str.c_str());
    printf("SwingNode %d mapping as a vector:\n", local_rank);
+   /*
    for (std::vector<char>::iterator it = mapping.begin();
          it != mapping.end(); ++it) {
       std::cout << *it << std::endl;
    }
    std::cout << std::endl;
+   */
 #endif
 
    // Create a new communicator to spawn the cache nodes off of, since we don't
@@ -264,12 +307,28 @@ void SwingNode::handle_requests() {
                handle_put_ack();
                break;
 
+            case PUT_LOCAL:
+               handle_put_local();
+               break;
+
+            case PUT_LOCAL_ACK:
+               handle_put_local_ack();
+               break;
+
             case GET:
                handle_get();
                break;
 
             case GET_ACK:
                handle_get_ack();
+               break;
+
+            case GET_LOCAL:
+               handle_get_local();
+               break;
+
+            case GET_LOCAL_ACK:
+               handle_get_local_ack();
                break;
 
             case PUSH:
@@ -302,7 +361,9 @@ void SwingNode::handle_requests() {
 
             default:
                printf("===== DEFAULT =====\n");
-               printf("SwingNode %d\n", local_rank);
+               fprintf(stderr, "SwingNode %d\n", local_rank);
+               fprintf(stderr, "Flag %s was not implemented!\n",
+                  msg_tag_handle((MsgTag)msg_info.tag));
                print_msg_info(&msg_info);
                ASSERT(1 == 0, MPI_Abort(MPI_COMM_WORLD, 1));
                break;

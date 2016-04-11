@@ -12,14 +12,14 @@ int main(int argc, char **argv) {
    int local_rank;
    MPI_Comm_rank(MPI_COMM_WORLD, &local_rank);
 
-   if (local_rank == 1) {
-      cache.put("Watson", "Corgi");    
+   if (local_rank == 0) {
+      cache.put_local("Watson", "Corgi");    
       printf("jobe_node %d - cache.put -> %s/%s returned!\n", local_rank, "Watson",
             "Corgi");
    }
 
-   if (local_rank == 3) {
-      cache.put("Hedgehog", "Cute");    
+   if (local_rank == 1) {
+      cache.put_local("Hedgehog", "Cute");    
       printf("jobe_node %d - cache.put -> %s/%s returned!\n", local_rank, "Hedgehog",
             "Cute");
    }
@@ -27,7 +27,7 @@ int main(int argc, char **argv) {
    MPI_Barrier(MPI_COMM_WORLD);
 
    if (local_rank == 2) {
-      cache.put("Watson", "Doof");    
+      cache.put_local("Watson", "Doof");    
       printf("jobe_node %d - cache.put -> %s/%s returned!\n", local_rank, "Watson",
             "Doof");
    }
@@ -36,6 +36,8 @@ int main(int argc, char **argv) {
 
    if (local_rank == 0) {
       std::string value;
+      cache.get_local("Watson", value);
+      printf("job_node %d - cache.get_local -> %s/%s\n", local_rank, "Watson", value.c_str());
       cache.get("Watson", value);
       printf("job_node %d - cache.get -> %s/%s\n", local_rank, "Watson", value.c_str());
       cache.get("Hedgehog", value);

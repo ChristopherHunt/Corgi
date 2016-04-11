@@ -1,4 +1,4 @@
 LIB := lib_utils.a
 OBJS := utils.o
 
-include ../../lib.mk
+include $(BASE_DIR)/src/lib.mk

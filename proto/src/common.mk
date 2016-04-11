@@ -15,7 +15,7 @@ endif
 
 CXXFLAGS := -O3 -std=c++0x
 
-INCLUDES := -I../../lib/
+INCLUDES := -I$(BASE_DIR)/src/lib/
 
 TO_BUILD := $(BIN) $(LIB)
 
