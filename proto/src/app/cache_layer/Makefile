@@ -1,6 +1,6 @@
-BIN := cache_layer
-OBJS := cache_layer.o
+app := cache_layer
+objs := cache_layer.o
 
-APP_LIBS := lib_cache_node.a lib_network.a lib_cache_quorum.a lib_utils.a
+app_libs := lib_cache_node.a lib_network.a lib_cache_quorum.a lib_utils.a
 
-include ../../app.mk
+include $(base_dir)/src//app.mk

@@ -1,6 +1,6 @@
-BIN := leader_layer
-OBJS := leader_layer.o
+app := leader_layer
+objs := leader_layer.o
 
-APP_LIBS := lib_leader_node.a lib_network.a lib_utils.a
+app_libs := lib_leader_node.a lib_network.a lib_utils.a
 
-include ../../app.mk
+include $(base_dir)/src/app.mk

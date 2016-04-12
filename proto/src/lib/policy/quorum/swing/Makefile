@@ -1,4 +1,4 @@
-LIB := lib_swing_quorum.a
-OBJS := swing_quorum.o
+lib := lib_swing_quorum.a
+objs := swing_quorum.o
 
-include $(BASE_DIR)/src/lib.mk
+include $(base_dir)/src/lib.mk

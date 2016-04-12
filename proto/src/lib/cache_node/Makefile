@@ -1,4 +1,4 @@
-LIB := lib_cache_node.a
-OBJS := cache_node.o
+lib := lib_cache_node.a
+objs := cache_node.o
 
-include $(BASE_DIR)/src/lib.mk
+include $(base_dir)/src/lib.mk

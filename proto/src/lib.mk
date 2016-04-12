@@ -1,4 +1,5 @@
-include $(BASE_DIR)/src/common.mk
+include $(base_dir)/src/common.mk
 
-$(LIB): $(OBJS)
+$(lib): $(objs)
 	ar rcs $@ $^
+	cp $@ $(lib_dir)

@@ -1,4 +1,4 @@
-LIB := lib_cache_api.a
-OBJS := cache_api.o
+lib := lib_cache_api.a
+objs := cache_api.o
 
-include $(BASE_DIR)/src/lib.mk
+include $(base_dir)/src/lib.mk

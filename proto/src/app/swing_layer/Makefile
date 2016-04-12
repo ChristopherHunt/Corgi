@@ -1,6 +1,6 @@
-BIN := swing_layer
-OBJS := swing_layer.o
+app := swing_layer
+objs := swing_layer.o
 
-APP_LIBS := lib_network.a lib_swing_quorum.a lib_swing_node.a lib_utils.a
+app_libs := lib_network.a lib_swing_quorum.a lib_swing_node.a lib_utils.a
 
-include ../../app.mk
+include $(base_dir)/src/app.mk

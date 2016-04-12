@@ -1,6 +1,6 @@
-BIN := job_layer
-OBJS := job_layer.o
+app := job_layer
+objs := job_layer.o
 
-APP_LIBS := lib_cache_api.a lib_network.a lib_utils.a
+app_libs := lib_cache_api.a lib_network.a lib_utils.a
 
-include ../../app.mk
+include $(base_dir)/src/app.mk

@@ -1,31 +1,34 @@
 SHELL := /bin/bash
 
-MPICH = $(shell command -v mpic++)
-MPIICC = $(shell command -v mpiicc)
+mpich = $(shell command -v mpic++)
+mpiicc = $(shell command -v mpiicc)
 
-ifdef MPICH
+ifdef mpich
 CXX := mpic++
 else
-ifdef MPIICC
+ifdef mpiicc
 CXX := mpiicc
 else
 $(error Neither Intel MPI nor MPICH installed, please install either.)
 endif
 endif
 
-CXXFLAGS := -O3 -std=c++0x
+CXXFLAGS += -O3 -std=c++0x
 
-INCLUDES := -I$(BASE_DIR)/src/lib/
+includes += -I$(base_dir)/src/lib/
 
-TO_BUILD := $(BIN) $(LIB)
+to_build := $(app) $(lib) $(test)
 
 .PHONY: default clean
 
-default: $(TO_BUILD)
+default: $(to_build)
 
 clean:
 	$(RM) *.o
-	$(RM) $(TO_BUILD)
+	$(RM) $(to_build)
 
 %.o: %.cpp
-	$(CXX) $(CXXFLAGS) $(CXX_DEBUG_FLAGS) -o $@ -c $< $(INCLUDES)
+	$(CXX) $(CXXFLAGS) $(cxx_debuf_flags) -o $@ -c $< $(includes)
+
+%.o: %.cc
+	$(CXX) $(CXXFLAGS) $(cxx_debuf_flags) -o $@ -c $< $(includes)

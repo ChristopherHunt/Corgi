@@ -1,4 +1,4 @@
-LIB := lib_network.a
-OBJS := network.o
+lib := lib_network.a
+objs := network.o
 
-include $(BASE_DIR)/src/lib.mk
+include $(base_dir)/src/lib.mk

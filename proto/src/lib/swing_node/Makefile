@@ -1,4 +1,4 @@
-LIB := lib_swing_node.a
-OBJS := swing_node.o
+lib := lib_swing_node.a
+objs := swing_node.o
 
-include $(BASE_DIR)/src/lib.mk
+include $(base_dir)/src/lib.mk

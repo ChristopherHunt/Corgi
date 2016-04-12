@@ -1,6 +1,7 @@
-include $(BASE_DIR)/src/common.mk
+include $(base_dir)/src/common.mk
 
-LDLIBS := $(addprefix $(BASE_DIR)/lib/, $(APP_LIBS))
+ld_libs := $(addprefix $(base_dir)/lib/, $(app_libs))
 
-$(BIN): $(LDLIBS) $(OBJS)
-	$(CXX) $(LDFLAGS) $(LDLIBS) -o $@ $(OBJS)
+$(app): $(ld_libs) $(objs)
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(ld_libs) -o $@ $(objs)
+	cp $@ $(bin_dir)

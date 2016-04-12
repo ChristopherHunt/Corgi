@@ -1,0 +1,19 @@
+[==========] Running 4 tests from 2 test cases.
+[----------] Global test environment set-up.
+[----------] 2 tests from vectorToStringlistTest
+[ RUN      ] vectorToStringlistTest.charVector
+[       OK ] vectorToStringlistTest.charVector (0 ms)
+[ RUN      ] vectorToStringlistTest.uint32Vector
+[       OK ] vectorToStringlistTest.uint32Vector (0 ms)
+[----------] 2 tests from vectorToStringlistTest (0 ms total)
+
+[----------] 2 tests from stirnglistToVectorTest
+[ RUN      ] stirnglistToVectorTest.spaceDelimString
+[       OK ] stirnglistToVectorTest.spaceDelimString (0 ms)
+[ RUN      ] stirnglistToVectorTest.commaDelimString
+[       OK ] stirnglistToVectorTest.commaDelimString (0 ms)
+[----------] 2 tests from stirnglistToVectorTest (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 4 tests from 2 test cases ran. (0 ms total)
+[  PASSED  ] 4 tests.
