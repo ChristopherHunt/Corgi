@@ -67,7 +67,6 @@ $(apps): $(libraries)
 
 $(libraries):
 	$(MAKE) -s -C $@
-	cp $@/*.a lib
 
 $(tests):
 	$(MAKE) -s -C $@
