@@ -48,15 +48,6 @@ class Cache {
       // Sends a push request for the specified key with the locality of the
       // push specified by the tag being passed in. Returns true on success.
       bool handle_push(const std::string& key, uint32_t node_id, MsgTag tag);
-      
-      // Packs buf with the contents required for a proper put call.
-      void pack_put(const std::string& key, const std::string& value);
-
-      // Packs buf with the contents required for a proper get call.
-      void pack_get(const std::string& key);
-
-      // Packs buf with the contents required for a proper push call.
-      void pack_push(const std::string& key, uint32_t target_node);
 
    public:
       // Constructor that takes in the program's argc and argv references. In

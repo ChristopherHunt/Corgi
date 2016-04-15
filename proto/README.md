@@ -4,7 +4,7 @@ CORGI API
 CORGI is an in-memory distributed MPI cache written in C++. To use CORGI, each
 node in a MPI Communicator must instantiate a CORGI object, at which point that
 node can participate in the cache communication. Below is a list of the cache
-functions.
+functions available to the user's MPI process:
 
     // Constructor that takes in the program's argc and argv references. In
     // the cache ecosystem there is cache specific arguments in these command
@@ -41,8 +41,7 @@ functions.
     // copy is still retained on the initial node). If the gather does not
     // succeed, false is returned and the contents of the node_ids vector will
     // contain the nodes whom the gather failed to reach.
-    bool gather(const std::string& key, 
-       const std::vector<uint32_t>& node_ids);
+    bool gather(const std::string& key, const std::vector<uint32_t>& node_ids);
 
     // Drops the key/value tuple associated with the input key from the
     // cache. Returns true on success.

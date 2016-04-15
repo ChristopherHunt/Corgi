@@ -274,16 +274,6 @@ bool Cache::handle_push(const std::string& key, uint32_t node_id, MsgTag tag) {
    PushTemplate *format = (PushTemplate *)buf;
    push.pack(format, job_num, local_rank, target_cache_node, key);
 
-   //format->job_num = job_num;
-   //format->job_node = local_rank;
-
-   // This is the node you are pushing the data to.
-   //format->cache_node = target_node;
-
-   //format->key_size = key.size();
-   //memcpy(format->key, key.c_str(), key.size());
-   //get_timestamp(&(format->timestamp));
-
 #ifdef DEBUG
    if (recv_tag == PUSH) {
       printf("Job %d Rank %d calling push on key %s to node %d!\n", job_num,
@@ -313,40 +303,3 @@ bool Cache::handle_push(const std::string& key, uint32_t node_id, MsgTag tag) {
 
    return temp->result == SUCCESS ? true : false;
 }
-
-/*
-   void Cache::pack_put(const std::string& key, const std::string& value) {
-   PutTemplate *format = (PutTemplate *)buf;
-   format->job_num = job_num;
-   format->job_node = local_rank;
-   format->cache_node = coord_rank;
-   format->key_size = key.size();
-   memcpy(format->key, key.c_str(), key.size());
-   format->value_size = value.size();
-   memcpy(format->value, value.c_str(), value.size());
-   get_timestamp(&(format->timestamp));
-   }
-
-   void Cache::pack_get(const std::string& key) {
-   GetTemplate *format = (GetTemplate *)buf;
-   format->job_num = job_num;
-   format->job_node = local_rank;
-   format->key_size = key.size();
-   memcpy(format->key, key.c_str(), key.size());
-   get_timestamp(&(format->timestamp));
-   }
-
-   void Cache::pack_push(const std::string& key, uint32_t target_node) {
-   PushTemplate *format = (PushTemplate *)buf;
-   format->job_num = job_num;
-   format->job_node = local_rank;
-
-// This is the node you are pushing the data to.
-format->cache_node = target_node;
-
-format->key_size = key.size();
-memcpy(format->key, key.c_str(), key.size());
-get_timestamp(&(format->timestamp));
-}
-*/
-
