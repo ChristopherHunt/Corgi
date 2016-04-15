@@ -2,7 +2,7 @@
 #include <string>
 #include <vector>
 #include <stdint.h>
-#include "utils/utils.h"
+#include "utility/utils/utils.h"
 
 // Test vector_to_stringlist for char vector
 TEST(vectorToStringlistTest, charVector) {

@@ -1,14 +1,12 @@
-#include <string.h>
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <mpi.h>
-#include "network/network.h"
-#include "utils/utils.h"
+#include "utility/utils/utils.h"
 #include "cache_api.h"
 
 Cache::Cache(int *argc_ptr, char ***argv_ptr) {
-   ASSERT(argc_ptr != NULL, MPI_Abort(MPI_COMM_WORLD, 1));
-   ASSERT(argv_ptr != NULL, MPI_Abort(MPI_COMM_WORLD, 1));
+   MPI_ASSERT(argc_ptr != NULL);
+   MPI_ASSERT(argv_ptr != NULL);
 
    allocate();
    orient(argc_ptr, argv_ptr); 
@@ -16,13 +14,14 @@ Cache::Cache(int *argc_ptr, char ***argv_ptr) {
 
 void Cache::allocate() {
    buf = (uint8_t *)calloc(INITIAL_BUF_SIZE, sizeof(uint8_t)); 
-   ASSERT(buf != NULL, MPI_Abort(MPI_COMM_WORLD, 1));
+   MPI_ASSERT(buf != NULL);
 }
 
 Cache::~Cache() {
    free(buf);
 }
 
+// TODO: Handle put failures from cache node!
 bool Cache::put_local(const std::string& key, const std::string& value) {
    return handle_put(key, value, PUT_LOCAL);
 }
@@ -42,13 +41,23 @@ bool Cache::get_local(const std::string& key, std::string& value) {
 
 bool Cache::push(const std::string& key, uint32_t node_id) {
    fprintf(stderr, "push not implemented!\n");
-   ASSERT(1 == 0, MPI_Abort(MPI_COMM_WORLD, 1));
+   MPI_ASSERT(FAILURE);
    return false;
+}
+
+bool Cache::push_local(const std::string& key, uint32_t node_id) {
+   return handle_push(key, node_id, PUSH_LOCAL);
 }
 
 bool Cache::pull(const std::string& key, uint32_t node_id) {
    fprintf(stderr, "pull not implemented!\n");
-   ASSERT(1 == 0, MPI_Abort(MPI_COMM_WORLD, 1));
+   MPI_ASSERT(FAILURE);
+   return false;
+}
+
+bool Cache::pull_local(const std::string& key, uint32_t node_id) {
+   fprintf(stderr, "pull_local not implemented!\n");
+   MPI_ASSERT(FAILURE);
    return false;
 }
 
@@ -56,7 +65,15 @@ bool Cache::scatter(const std::string& key,
       const std::vector<uint32_t>& node_ids) {
 
    fprintf(stderr, "scatter not implemented!\n");
-   ASSERT(1 == 0, MPI_Abort(MPI_COMM_WORLD, 1));
+   MPI_ASSERT(FAILURE);
+   return false;
+}
+
+bool Cache::scatter_local(const std::string& key,
+      const std::vector<uint32_t>& node_ids) {
+
+   fprintf(stderr, "scatter_local not implemented!\n");
+   MPI_ASSERT(FAILURE);
    return false;
 }
 
@@ -64,35 +81,41 @@ bool Cache::gather(const std::string& key,
       const std::vector<uint32_t>& node_ids) {
 
    fprintf(stderr, "gather not implemented!\n");
-   ASSERT(1 == 0, MPI_Abort(MPI_COMM_WORLD, 1));
+   MPI_ASSERT(FAILURE);
    return false;
 }
 
 bool Cache::drop(const std::string& key) {
    fprintf(stderr, "drop not implemented!\n");
-   ASSERT(1 == 0, MPI_Abort(MPI_COMM_WORLD, 1));
+   MPI_ASSERT(FAILURE);
+   return false;
+}
+
+bool Cache::drop_local(const std::string& key) {
+   fprintf(stderr, "drop not implemented!\n");
+   MPI_ASSERT(FAILURE);
    return false;
 }
 
 bool Cache::collect(const std::string& key) {
    fprintf(stderr, "collect not implemented!\n");
-   ASSERT(1 == 0, MPI_Abort(MPI_COMM_WORLD, 1));
+   MPI_ASSERT(FAILURE);
    return false;
 }
 
 void Cache::get_owners(const std::string& key, std::vector<uint32_t>& owners) {
    fprintf(stderr, "get_owners not implemented!\n");
-   ASSERT(1 == 0, MPI_Abort(MPI_COMM_WORLD, 1));
+   MPI_ASSERT(FAILURE);
 }
 
 void Cache::orient(int *argc_ptr, char ***argv_ptr) {
-   ASSERT(argc_ptr != NULL, MPI_Abort(MPI_COMM_WORLD, 1));
-   ASSERT(argv_ptr != NULL, MPI_Abort(MPI_COMM_WORLD, 1));
+   MPI_ASSERT(argc_ptr != NULL);
+   MPI_ASSERT(argv_ptr != NULL);
 
    int argc = *argc_ptr;
    char **argv = *argv_ptr;
 
-   ASSERT(argc >= 3, MPI_Abort(1, MPI_COMM_WORLD));
+   MPI_ASSERT(argc >= 3);
 
 #ifdef DEBUG
    // Print the argv list for reference
@@ -109,9 +132,7 @@ void Cache::orient(int *argc_ptr, char ***argv_ptr) {
 
    // Grab the job to cache node pairings list. 
    std::string mapping(argv[2]);
-   //replace_commas(mapping);
-   std::vector<uint32_t> map_vec;
-   stringlist_to_vector(map_vec, mapping);
+   stringlist_to_vector(job_to_cache, mapping);
 
    // Update argc and argv so things are transparent to the caller.
    // TODO: Ensure this is working properly
@@ -129,7 +150,7 @@ void Cache::orient(int *argc_ptr, char ***argv_ptr) {
    MPI_Comm_rank(parent_comm, &parent_rank);
 
    // Get coordinator cache node's rank for this job node.
-   coord_rank = map_vec[local_rank];
+   coord_rank = job_to_cache[local_rank];
 
 #ifdef DEBUG
    printf("Job node: local rank - %d/%d parent rank - %d/%d\n", local_rank,
@@ -143,15 +164,18 @@ void Cache::orient(int *argc_ptr, char ***argv_ptr) {
 bool Cache::handle_put(const std::string& key, const std::string& value,
       MsgTag tag) {
 
-   ASSERT(tag == PUT || tag == PUT_LOCAL, MPI_Abort(MPI_COMM_WORLD, 1));
+   MPI_ASSERT(tag == PUT || tag == PUT_LOCAL);
 
    int32_t result;
-   MPI_Request request;
    MPI_Status status;
    MsgTag recv_tag = tag == PUT ? PUT_ACK : PUT_LOCAL_ACK;
+   uint64_t timestamp;
+   get_timestamp(&timestamp);
 
    // Pack the put message into buf prior to sending.
-   pack_put(key, value);
+   PutTemp put;
+   PutTemplate *format = (PutTemplate *)buf;
+   put.pack(format, job_num, local_rank, coord_rank, key, value, timestamp);
 
 #ifdef DEBUG
    if (tag == PUT) {
@@ -182,16 +206,18 @@ bool Cache::handle_put(const std::string& key, const std::string& value,
 }
 
 bool Cache::handle_get(const std::string& key, std::string& value, MsgTag tag) {
+   MPI_ASSERT(tag == GET || tag == GET_LOCAL);
+
    int result;
+   uint64_t timestamp;
+   get_timestamp(&timestamp);
 
-   ASSERT(tag == GET || tag == GET_LOCAL, MPI_Abort(MPI_COMM_WORLD, 1));
-
-   MPI_Request request;
-   MPI_Status status;
    MsgTag recv_tag = tag == GET ? GET_ACK : GET_LOCAL_ACK;
 
    // Pack the get message into buf prior to sending.
-   pack_get(key);
+   GetTemp get;
+   GetTemplate *format = (GetTemplate *)buf;
+   get.pack(format, job_num, local_rank, key, timestamp);
 
 #ifdef DEBUG
    if (recv_tag == GET) {
@@ -226,7 +252,70 @@ bool Cache::handle_get(const std::string& key, std::string& value, MsgTag tag) {
    return (temp->value_size > 0) ? true : false;
 }
 
-void Cache::pack_put(const std::string& key, const std::string& value) {
+bool Cache::handle_push(const std::string& key, uint32_t node_id, MsgTag tag) {
+   MPI_ASSERT(tag == PUSH || tag == PUSH_LOCAL);
+
+   int result;
+   uint32_t target_cache_node;
+
+   // Translate the job node's id to the id of its cache node.
+   if (node_id < job_to_cache.size()) {
+      target_cache_node = job_to_cache[node_id];
+   }
+   // If the node_id is bogus, return false.
+   else {
+      return false;
+   }
+
+   MsgTag recv_tag = tag == PUSH ? PUSH_ACK : PUSH_LOCAL_ACK;
+
+   // Pack the get message into buf prior to sending.
+   PushTemp push;
+   PushTemplate *format = (PushTemplate *)buf;
+   push.pack(format, job_num, local_rank, target_cache_node, key);
+
+   //format->job_num = job_num;
+   //format->job_node = local_rank;
+
+   // This is the node you are pushing the data to.
+   //format->cache_node = target_node;
+
+   //format->key_size = key.size();
+   //memcpy(format->key, key.c_str(), key.size());
+   //get_timestamp(&(format->timestamp));
+
+#ifdef DEBUG
+   if (recv_tag == PUSH) {
+      printf("Job %d Rank %d calling push on key %s to node %d!\n", job_num,
+            local_rank, key.c_str(), node_id);
+   }
+   else {
+      printf("Job %d Rank %d calling push_local on key %s to node %d!\n", job_num,
+            local_rank, key.c_str(), node_id);
+   }
+#endif
+
+   result = send_msg(buf, sizeof(PushTemplate), MPI_UINT8_T, coord_rank,
+         tag, parent_comm, &request);
+
+   if (result != MPI_SUCCESS) {
+      return false;
+   }
+
+   result = recv_msg(buf, sizeof(PushAckTemplate), MPI_UINT8_T, MPI_ANY_SOURCE,
+         recv_tag, parent_comm, &status);
+
+   if (result != MPI_SUCCESS) {
+      return false;
+   }
+
+   PushAckTemplate *temp = (PushAckTemplate *)buf;
+
+   return temp->result == SUCCESS ? true : false;
+}
+
+/*
+   void Cache::pack_put(const std::string& key, const std::string& value) {
    PutTemplate *format = (PutTemplate *)buf;
    format->job_num = job_num;
    format->job_node = local_rank;
@@ -236,13 +325,28 @@ void Cache::pack_put(const std::string& key, const std::string& value) {
    format->value_size = value.size();
    memcpy(format->value, value.c_str(), value.size());
    get_timestamp(&(format->timestamp));
-}
+   }
 
-void Cache::pack_get(const std::string& key) {
+   void Cache::pack_get(const std::string& key) {
    GetTemplate *format = (GetTemplate *)buf;
    format->job_num = job_num;
    format->job_node = local_rank;
    format->key_size = key.size();
    memcpy(format->key, key.c_str(), key.size());
    get_timestamp(&(format->timestamp));
+   }
+
+   void Cache::pack_push(const std::string& key, uint32_t target_node) {
+   PushTemplate *format = (PushTemplate *)buf;
+   format->job_num = job_num;
+   format->job_node = local_rank;
+
+// This is the node you are pushing the data to.
+format->cache_node = target_node;
+
+format->key_size = key.size();
+memcpy(format->key, key.c_str(), key.size());
+get_timestamp(&(format->timestamp));
 }
+*/
+

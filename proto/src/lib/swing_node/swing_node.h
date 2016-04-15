@@ -1,13 +1,7 @@
 #ifndef __SWING__NODE__H__
 #define __SWING__NODE__H__
 
-#include <iostream>
-#include <unordered_map>
-#include <mpi.h>
-#include <deque>
-#include <vector>
 #include "policy/policy.h"
-#include "network/network.h"
 #include "shared/node.h"
 
 class SwingNode : public virtual Node {
@@ -19,6 +13,17 @@ class SwingNode : public virtual Node {
    private:
       friend class Policy;
       Policy *policy;
+
+      // Flag to tell the node to shutdown.
+      bool shutdown;
+
+      // Number of cache nodes spawned by this swing node.
+      uint32_t num_cache_nodes;
+
+      // Listing of all unique cache nodes by communicator and list of ranks.
+      // Where the index into the list of ranks is the cache node's id, and the
+      // value found there is that cache node's coordinator swing node.
+      std::unordered_map<MPI_Comm, std::vector<uint32_t> > cache_nodes;
 
       // Allocates space for dynamic data structures within the object.
       void allocate();
@@ -49,7 +54,13 @@ class SwingNode : public virtual Node {
 
       void handle_push_ack();
 
+      void handle_push_local();
+
+      void handle_push_local_ack();
+
       void handle_exit();
+
+      void handle_exit_ack();
 
       void handle_spawn_job();
 

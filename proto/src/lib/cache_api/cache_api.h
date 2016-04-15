@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 #include "network/network.h"
+#include "utility/utils/utils.h"
 
 class Cache {
    private:
@@ -18,7 +19,13 @@ class Cache {
 
       uint8_t *buf;        // Byte buffer for sending and receiving messages.
 
+      MPI_Status status;
+      MPI_Request request;
       MPI_Comm parent_comm;   // Cache comm that spawned this job.
+
+      // Maps job nodes to cache nodes, where the job's id is the index into the
+      // vector to find its coordinator cache node.
+      std::vector<uint32_t> job_to_cache;
 
       // Allocates any needed memory on the heap.
       void allocate();
@@ -34,15 +41,22 @@ class Cache {
       bool handle_get(const std::string& key, std::string& value, MsgTag tag);
 
       // Sends a put request for the specified key with the locality of the put
-      // specified by the tag being passed in. On success, true is returned.
+      // specified by the tag being passed in. Returns true on success.
       bool handle_put(const std::string& key, const std::string& value,
          MsgTag tag);
+      
+      // Sends a push request for the specified key with the locality of the
+      // push specified by the tag being passed in. Returns true on success.
+      bool handle_push(const std::string& key, uint32_t node_id, MsgTag tag);
       
       // Packs buf with the contents required for a proper put call.
       void pack_put(const std::string& key, const std::string& value);
 
       // Packs buf with the contents required for a proper get call.
       void pack_get(const std::string& key);
+
+      // Packs buf with the contents required for a proper push call.
+      void pack_push(const std::string& key, uint32_t target_node);
 
    public:
       // Constructor that takes in the program's argc and argv references. In
@@ -63,19 +77,19 @@ class Cache {
       // false is returned and the contents of value is set to empty.
       bool get(const std::string& key, std::string& value);
 
-      // Pushes a key/value tuple to another node within the cache (the local
-      // copy is still retained on the initial node). Returns true on success.
+      // Pushes the most current key/value tuple to another node within the cache
+      // (the local copy is still retained on the initial node). Returns true on
+      // success.
       bool push(const std::string& key, uint32_t node_id);
 
-      // Pull a key/value tuple from another node within the cache (the local
-      // copy is still retained on the initial node). Returns true if the pull
-      // succeeded, false otherwise.
+      // Pulls the most current key/value tuple from the cache to the calling
+      // node. Returns true if the pull succeeds.
       bool pull(const std::string& key, uint32_t node_id);
 
-      // Pushes a key/value tuple to a set of nodes within the cache (the local
-      // copy is still retained on the initial node). If the scatter does not
-      // succeed, false is returned and the contents of the node_ids vector will
-      // contain the nodes whom the scatter failed to reach.
+      // Pushes the most current key/value tuple to a set of nodes within the
+      // cache. If the scatter does not succeed, false is returned and the
+      // contents of the node_ids vector will contain the nodes whom the scatter
+      // filed to reach.
       bool scatter(const std::string& key,
          const std::vector<uint32_t>& node_ids);
 
@@ -95,6 +109,10 @@ class Cache {
       // from any of the nodes in the cache. Returns true on success.
       bool collect(const std::string& key);
 
+      // Populates the owners vector with a list of all nodes within the
+      // system that have the tuple specified by the input key.
+      void get_owners(const std::string& key, std::vector<uint32_t>& owners);
+
       // Adds the tuple described by the key/value pair to the calling node's
       // local cache node only. Returns true on success.
       bool put_local(const std::string& key, const std::string& value);
@@ -104,9 +122,26 @@ class Cache {
       // value is set to empty.
       bool get_local(const std::string& key, std::string& value);
 
-      // Populates the owners vector with a list of all nodes within the
-      // system that have the tuple specified by the input key.
-      void get_owners(const std::string& key, std::vector<uint32_t>& owners);
+      // Pushes a key/value tuple to another node within the cache (the local
+      // copy is still retained on the initial node). Returns true on success.
+      bool push_local(const std::string& key, uint32_t node_id);
+
+      // Pull a key/value tuple from another node within the cache (the local
+      // copy is still retained on the initial node). Returns true if the pull
+      // succeeded, false otherwise.
+      bool pull_local(const std::string& key, uint32_t node_id);
+
+      // Pushes the calling node's local key/value tuple to a set of nodes
+      // within the cache (the local copy is still retained on the initial node).
+      // If the scatter does not succeed, false is returned and the contents of
+      // the node_ids vector will contain the nodes whom the scatter failed to
+      // reach.
+      bool scatter_local(const std::string& key,
+         const std::vector<uint32_t>& node_ids);
+
+      // Drops the key/value tuple associated with the input key from the
+      // calling node. Returns true on success.
+      bool drop_local(const std::string& key);
 };
 
 #endif

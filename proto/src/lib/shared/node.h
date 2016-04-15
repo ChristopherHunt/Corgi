@@ -1,15 +1,18 @@
 #ifndef __NODE__H__
 #define __NODE__H__
 
-#include <deque>
 #include <mpi.h>
+#include <deque>
+#include <string>
 #include <unordered_map>
+#include <vector>
 #include "network/network.h"
-#include "utils/utils.h"
+#include "utility/utils/utils.h"
 
 class Node {
    public:
       MPI_Status status;      // Status structure for checking communications.
+      MPI_Request request;    // Request structure for handling sends.
       MPI_Comm parent_comm;   // Intercommunicator between local & parent comm
       int parent_size;        // Size of parent comm
       int parent_rank;        // Rank of this node in parent comm

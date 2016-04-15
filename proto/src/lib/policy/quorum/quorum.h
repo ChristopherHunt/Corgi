@@ -33,6 +33,10 @@ typedef struct GetReq {
 class Quorum : public virtual Policy {
    public:
       Node *node;
+      uint8_t *buf;
+      MsgInfo *msg_info;
+      MPI_Status *status;
+      MPI_Request request;
       std::unordered_map<std::string, Parcel> cache; 
       std::vector<GetReq> pending_get_requests;
 

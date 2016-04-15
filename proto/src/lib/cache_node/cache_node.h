@@ -1,13 +1,7 @@
 #ifndef __CACHE__NODE__H__
 #define __CACHE__NODE__H__
 
-#include <iostream>
-#include <unordered_map>
-#include <mpi.h>
-#include <deque>
-#include <vector>
 #include "policy/policy.h"
-#include "network/network.h"
 #include "shared/node.h"
 
 class CacheNode : public virtual Node {
@@ -21,6 +15,17 @@ class CacheNode : public virtual Node {
    private:
       friend class Policy;
       Policy *policy;
+
+      // Flag to tell the system to shutdown.
+      bool shutdown;
+
+      // Number of job nodes spawned by cache node.
+      uint32_t num_job_nodes;
+
+      // Listing of all unique job nodes by communicator and list of ranks.
+      // Where the index into the list of ranks is the job node's id, and the
+      // value found there is that job node's coordinator cache node.
+      std::unordered_map<MPI_Comm, std::vector<uint32_t> > job_nodes;
 
       // Allocates space for dynamic data structures within the object.
       void allocate();
@@ -54,13 +59,31 @@ class CacheNode : public virtual Node {
 
       void handle_push_ack();
 
+      void handle_push_local();
+
+      void handle_push_local_ack();
+
+      void handle_pull();
+
+      void handle_pull_ack();
+
+      void handle_pull_local();
+
+      void handle_pull_local_ack();
+
       void handle_drop();
 
       void handle_drop_ack();
 
+      void handle_drop_local();
+
+      void handle_drop_local_ack();
+
       void handle_spawn_job();
 
       void handle_exit();
+
+      void handle_exit_ack();
 
       // Handles all message requests from other nodes.
       void handle_requests();

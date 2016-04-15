@@ -43,6 +43,18 @@ class Policy {
       virtual void handle_get_local() = 0;
       virtual void handle_get_local_ack() = 0;
 
+      virtual void handle_push_local() = 0;
+      virtual void handle_push_local_ack() = 0;
+
+      virtual void handle_pull_local() = 0;
+      virtual void handle_pull_local_ack() = 0;
+
+      virtual void handle_drop_local() = 0;
+      virtual void handle_drop_local_ack() = 0;
+
+      virtual void handle_scatter_local() = 0;
+      virtual void handle_scatter_local_ack() = 0;
+
       virtual void handle_get_owners() = 0;
       virtual void handle_get_owners_ack() = 0;
 };

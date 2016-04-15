@@ -4,12 +4,19 @@
 #include <mpi.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <sys/select.h>
 #include <algorithm>
 #include <chrono>
 #include <iostream>
 #include <iterator>
 #include <sstream>
 #include <vector>
+
+#define SUCCESS 1
+#define FAILURE 0
+
+#define STDIN 0
+#define KILL_ALL_JOBS -1
 
 #define INITIAL_BUF_SIZE 65535
 #define MAX_MAPPING_SIZE 32768
@@ -19,15 +26,10 @@
 
 // Enums for different tags (message flags) between a CacheNode and the sender.
 enum MsgTag { PUT, PUT_ACK, PUT_LOCAL, PUT_LOCAL_ACK, GET, GET_ACK, GET_LOCAL,
-              GET_LOCAL_ACK, PUSH, PUSH_ACK, DROP, DROP_ACK, SPAWN_JOB,
-              SPAWN_CACHE, EXIT };
+   GET_LOCAL_ACK, PUSH, PUSH_ACK, PUSH_LOCAL, PUSH_LOCAL_ACK, PULL,
+   PULL_ACK, PULL_LOCAL, PULL_LOCAL_ACK, DROP, DROP_ACK, DROP_LOCAL,
+   DROP_LOCAL_ACK, SPAWN_JOB, SPAWN_CACHE, EXIT, EXIT_ACK };
 
-// Struct to keep track of messages from other nodes which are waiting to be
-// tended to.
-// tag ----> the tag associated with a message.
-// src ----> the src rank of the sender of the message.
-// count --> the length of the message in bytes.
-// comm ---> the communicator of the sender.
 typedef struct MsgInfo {
    uint32_t tag;
    uint32_t src;
@@ -35,15 +37,6 @@ typedef struct MsgInfo {
    MPI_Comm comm;
 } __attribute__((packed)) MsgInfo;
 
-// Partial header for the Spawn Job Nodes message.
-// job_num -----> the number associated with this job.
-// count -------> the number of job nodes to spawn.
-// mapping_len -> the length of the mapping array
-// mapping -----> the beginning of an array of uin32_t's which maps each job node
-//                to its corresponding cache node.
-// In the case of spawning job nodes, at the end of the mapping array there is
-// the length of the name of the executable to spawn each job node with as well
-// as the actual executable name.
 typedef struct SpawnNodesTemplate {
    uint32_t job_num;
    uint16_t count;
@@ -70,6 +63,7 @@ typedef struct PutAckTemplate {
    uint32_t cache_node;
    uint32_t key_size;
    uint8_t key[MAX_KEY_SIZE];
+   uint8_t result;
 } __attribute__((packed)) PutAckTemplate;
 
 typedef struct GetTemplate {
@@ -88,6 +82,7 @@ typedef struct GetAckTemplate {
    uint32_t value_size;
    uint8_t value[MAX_VALUE_SIZE];
    uint64_t timestamp;
+   uint8_t result;
 } __attribute__((packed)) GetAckTemplate;
 
 typedef struct CensusTemplate {
@@ -98,13 +93,182 @@ typedef struct CensusTemplate {
    uint32_t votes_req;
 } __attribute__((packed)) CensusTemplate;
 
-typedef struct ForwardTemplate {
+typedef struct PushTemplate {
    uint32_t job_num;
    uint32_t job_node;
+   uint32_t cache_node;
    uint32_t key_size;
    uint8_t key[MAX_KEY_SIZE];
+} __attribute__((packed)) PushTemplate;
+
+typedef struct PushAckTemplate {
+   uint32_t job_num;
+   uint32_t job_node;
    uint32_t cache_node;
-} __attribute__((packed)) ForwardTemplate;
+   uint32_t key_size;
+   uint8_t key[MAX_KEY_SIZE];
+   uint8_t result;
+} __attribute__((packed)) PushAckTemplate;
+
+// If job_num == KILL_ALL_JOBS then kill all nodes.
+typedef struct ExitTemplate {
+   int32_t job_num;
+} __attribute__((packed)) ExitTemplate;
+
+class SpawnNodesTemp {
+   public:
+      uint32_t job_num;
+      uint16_t count;
+      uint16_t mapping_size;
+      std::string mapping;
+      uint8_t exec_size;
+      std::string exec_name;
+
+      SpawnNodesTemp();
+
+      ~SpawnNodesTemp();
+
+      void pack(SpawnNodesTemplate *temp, uint32_t job_num, uint16_t count,
+            const std::string& mapping, const std::string& exec_name);
+
+      void unpack(SpawnNodesTemplate *temp);
+};
+
+class PutTemp {
+   public:
+      uint32_t job_num;
+      uint32_t job_node;
+      uint32_t cache_node;
+      uint32_t key_size;
+      std::string key;
+      uint32_t value_size;
+      std::string value;
+      uint64_t timestamp;
+
+      PutTemp();
+
+      ~PutTemp();
+
+      void pack(PutTemplate *temp, uint32_t job_num, uint32_t job_node,
+            uint32_t cache_node, const std::string& key, const std::string& value,
+            uint64_t timestamp);
+
+      void unpack(PutTemplate *temp);
+};
+
+class PutAckTemp {
+   public:
+      uint32_t job_num;
+      uint32_t job_node;
+      uint32_t cache_node;
+      uint32_t key_size;
+      std::string key;
+      uint8_t result;
+
+      PutAckTemp();
+
+      ~PutAckTemp();
+
+      void pack(PutAckTemplate *temp, uint32_t job_num, uint32_t job_node,
+            uint32_t cache_node, const std::string& key, uint8_t result);
+
+      void unpack(PutAckTemplate *temp);
+};
+
+class GetTemp {
+   public:
+      uint32_t job_num;
+      uint32_t job_node;
+      uint32_t key_size;
+      std::string key;
+      uint64_t timestamp;
+
+      GetTemp();
+
+      ~GetTemp();
+
+      void pack(GetTemplate *temp, uint32_t job_num, uint32_t job_node,
+            const std::string& key, uint64_t timestamp);
+
+      void unpack(GetTemplate *temp);
+};
+
+class GetAckTemp {
+   public:
+      uint32_t job_num;
+      uint32_t job_node;
+      uint32_t key_size;
+      std::string key;
+      uint32_t value_size;
+      std::string value;
+      uint64_t timestamp;
+      uint8_t result;
+
+      GetAckTemp();
+
+      ~GetAckTemp();
+
+      void pack(GetAckTemplate *temp, uint32_t job_num, uint32_t job_node,
+            const std::string& key, const std::string& value, uint64_t timestamp,
+            uint8_t result);
+
+      void unpack(GetAckTemplate *temp);
+};
+
+class CensusTemp {
+   public:
+      uint32_t job_num;
+      uint32_t job_node;
+      uint32_t key_size;
+      std::string key;
+      uint32_t votes_req;
+
+      CensusTemp();
+
+      ~CensusTemp();
+
+      void pack(CensusTemplate *temp, uint32_t job_num, uint32_t job_node,
+            const std::string& key, uint32_t votes_req);
+
+      void unpack(CensusTemplate *temp);
+};
+
+class PushTemp {
+   public:
+      uint32_t job_num;
+      uint32_t job_node;
+      uint32_t cache_node;
+      uint32_t key_size;
+      std::string key;
+
+      PushTemp();
+
+      ~PushTemp();
+
+      void pack(PushTemplate *temp, uint32_t job_num, uint32_t job_node,
+            uint32_t cache_node, const std::string& key);
+
+      void unpack(PushTemplate *temp);
+};
+
+class PushAckTemp {
+   public:
+      uint32_t job_num;
+      uint32_t job_node;
+      uint32_t cache_node;
+      uint32_t key_size;
+      std::string key;
+      uint8_t result;
+
+      PushAckTemp();
+
+      ~PushAckTemp();
+
+      void pack(PushAckTemplate *temp, uint32_t job_num, uint32_t job_node,
+            uint32_t cache_node, const std::string& key, uint8_t result);
+
+      void unpack(PushAckTemplate *temp);
+};
 
 // Prints the info associated with a message to stdout in a formatted way.
 void print_msg_info(MsgInfo *msg_info);

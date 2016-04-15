@@ -4,4 +4,4 @@ ld_libs := $(addprefix $(base_dir)/lib/, $(app_libs))
 
 $(app): $(ld_libs) $(objs)
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(ld_libs) -o $@ $(objs)
-	cp $@ $(bin_dir)
+	cp $@ $(target_dir)

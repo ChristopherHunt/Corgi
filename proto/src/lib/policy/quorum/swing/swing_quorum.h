@@ -38,17 +38,29 @@ class SwingQuorum : public virtual Quorum {
       virtual void handle_push();
       virtual void handle_push_ack();
 
+      virtual void handle_push_local();
+      virtual void handle_push_local_ack();
+
       virtual void handle_pull();
       virtual void handle_pull_ack();
 
+      virtual void handle_pull_local();
+      virtual void handle_pull_local_ack();
+
       virtual void handle_scatter();
       virtual void handle_scatter_ack();
+
+      virtual void handle_scatter_local();
+      virtual void handle_scatter_local_ack();
 
       virtual void handle_gather();
       virtual void handle_gather_ack();
 
       virtual void handle_drop();
       virtual void handle_drop_ack();
+
+      virtual void handle_drop_local();
+      virtual void handle_drop_local_ack();
 
       virtual void handle_collect();
       virtual void handle_collect_ack();

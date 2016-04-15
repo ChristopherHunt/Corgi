@@ -1,18 +1,19 @@
 #include <stdlib.h>
-#include "network/network.h"
 #include "policy/quorum/swing/swing_quorum.h"
-#include "utils/utils.h"
 #include "swing_node.h"
 
 SwingNode::SwingNode() {
-   // Set the policy for consistency and latency.
-   policy = new SwingQuorum(this);
+   // Allocates data structures within this object.
+   allocate();
 
    // Determine where this node is in the system.
    orient();
 
-   // Allocates data structures within this object.
-   allocate();
+   // Keep the node up unless told otherwise.
+   shutdown = false;
+
+   // Set number of initial cache nodes to zero.
+   num_cache_nodes = 0;
 
    // Handle all requests sent to this cache node.
    handle_requests();
@@ -21,11 +22,16 @@ SwingNode::SwingNode() {
 SwingNode::~SwingNode() {
    free(buf);
    delete(policy);
+   printf("SwingNode %d is exiting!\n", local_rank);
 }
 
 void SwingNode::allocate() {
    buf = (uint8_t *)calloc(INITIAL_BUF_SIZE, sizeof(uint8_t));
-   ASSERT(buf != NULL, MPI_Abort(MPI_COMM_WORLD, 1));
+   MPI_ASSERT(buf != NULL);
+
+   // Set the policy for consistency and latency.
+   policy = new SwingQuorum(this);
+   MPI_ASSERT(policy != NULL);
 }
 
 void SwingNode::handle_put() {
@@ -128,6 +134,26 @@ void SwingNode::handle_push_ack() {
    policy->handle_push_ack();
 }
 
+void SwingNode::handle_push_local() {
+#ifdef DEBUG
+   printf("===== PUSH_LOCAL =====\n");
+   printf("SwingNode %d\n", local_rank);
+   print_msg_info(&msg_info);
+#endif
+
+   policy->handle_push_local();
+}
+
+void SwingNode::handle_push_local_ack() {
+#ifdef DEBUG
+   printf("===== PUSH_LOCAL_ACK =====\n");
+   printf("SwingNode %d\n", local_rank);
+   print_msg_info(&msg_info);
+#endif
+
+   policy->handle_push_local_ack();
+}
+
 void SwingNode::handle_drop() {
 #ifdef DEBUG
    printf("===== DROP =====\n");
@@ -136,7 +162,7 @@ void SwingNode::handle_drop() {
 #endif
 
    fprintf(stderr, "handle_drop not implemented on swing_node!\n");
-   ASSERT(1 == 0, MPI_Abort(1, MPI_COMM_WORLD));
+   MPI_ASSERT(FAILURE);
 }
 
 void SwingNode::handle_drop_ack() {
@@ -147,7 +173,7 @@ void SwingNode::handle_drop_ack() {
 #endif
 
    fprintf(stderr, "handle_drop_ack not implemented on swing_node!\n");
-   ASSERT(1 == 0, MPI_Abort(1, MPI_COMM_WORLD));
+   MPI_ASSERT(FAILURE);
 }
 
 void SwingNode::handle_team_query() {
@@ -169,7 +195,7 @@ void SwingNode::handle_spawn_job() {
    // Receive the job spawn request from the leader.
    result = recv_msg(buf, msg_info.count, MPI_UINT8_T, msg_info.src, SPAWN_JOB,
          msg_info.comm, &status);
-   ASSERT(result == MPI_SUCCESS, MPI_Abort(MPI_COMM_WORLD, 1));
+   MPI_ASSERT(result == MPI_SUCCESS);
 
 #ifdef DEBUG
    printf("SwingNode %d received spawn_job msg successfully!\n", local_rank);
@@ -182,12 +208,11 @@ void SwingNode::handle_spawn_job() {
    // There must already have been a CommsGroup entry in the job_to_comms
    // map for this job number (either from cache node creation or from cache
    // node splitting / regrouping in a previous step).
-   ASSERT(job_to_comms.count(job_num) != 0, MPI_Abort(MPI_COMM_WORLD, 1));
+   MPI_ASSERT(job_to_comms.count(job_num) != 0);
    MPI_Comm cache_comm = job_to_comms[job_num].cache;
 
    int comm_size;
    MPI_Comm_remote_size(cache_comm, &comm_size);
-   MPI_Request request;
 
    // Send each cache node a request to spawn a job node.
    for (int i = 0; i < comm_size; ++i) {
@@ -196,8 +221,8 @@ void SwingNode::handle_spawn_job() {
             local_rank, i);
 #endif
       result = send_msg(buf, msg_info.count, MPI_UINT8_T, i, SPAWN_JOB,
-                            cache_comm, &request);
-      ASSERT(result == MPI_SUCCESS, MPI_Abort(MPI_COMM_WORLD, 1));
+            cache_comm, &request);
+      MPI_ASSERT(result == MPI_SUCCESS);
    }
 }
 
@@ -211,40 +236,38 @@ void SwingNode::handle_spawn_cache() {
    int result;
 
    result = recv_msg(buf, msg_info.count, MPI_UINT8_T, msg_info.src,
-                     SPAWN_CACHE, msg_info.comm, &status);
-   ASSERT(result == MPI_SUCCESS, MPI_Abort(MPI_COMM_WORLD, 1));
+         SPAWN_CACHE, msg_info.comm, &status);
+   MPI_ASSERT(result == MPI_SUCCESS);
 
+   SpawnNodesTemp spawn_nodes;
    SpawnNodesTemplate *format = (SpawnNodesTemplate *)buf;
+   spawn_nodes.unpack(format);
+   /*
    uint32_t job_num = format->job_num;
    uint16_t node_count = format->count;
    uint16_t mapping_size = format->mapping_size;
    std::string mapping_str(format->mapping, format->mapping + mapping_size);
-
-   // TODO: I don't think we need this anymore
-   /*
-   std::vector<char> mapping;
-   stringlist_to_vector(mapping, mapping_str);
    */
 
    // Ensure that this job does not have cache nodes already associated with
    // it.
-   ASSERT(job_to_comms.count(job_num) == 0, MPI_Abort(MPI_COMM_WORLD, 1));
+   MPI_ASSERT(job_to_comms.count(spawn_nodes.job_num) == 0);
 
 #ifdef DEBUG
    printf("SwingNode %d msg_info.count: %u\n", local_rank, msg_info.count);
-   printf("SwingNode %d mapping_size: %d\n", local_rank, mapping_size);
+   printf("SwingNode %d mapping_size: %d\n", local_rank, spawn_nodes.mapping_size);
    printf("SwingNode %d received msg\n", local_rank);
-   printf("SwingNode %d job #: %d\n", local_rank, job_num);
-   printf("SwingNode %d spawn count: %d\n", local_rank, node_count);
-   printf("SwingNode %d mapping: %s\n", local_rank, mapping_str.c_str());
+   printf("SwingNode %d job #: %d\n", local_rank, spawn_nodes.job_num);
+   printf("SwingNode %d spawn count: %d\n", local_rank, spawn_nodes.count);
+   printf("SwingNode %d mapping: %s\n", local_rank, spawn_nodes.mapping.c_str());
    printf("SwingNode %d mapping as a vector:\n", local_rank);
    /*
-   for (std::vector<char>::iterator it = mapping.begin();
-         it != mapping.end(); ++it) {
+      for (std::vector<char>::iterator it = mapping.begin();
+      it != mapping.end(); ++it) {
       std::cout << *it << std::endl;
-   }
-   std::cout << std::endl;
-   */
+      }
+      std::cout << std::endl;
+      */
 #endif
 
    // Create a new communicator to spawn the cache nodes off of, since we don't
@@ -255,34 +278,124 @@ void SwingNode::handle_spawn_cache() {
    // Create an array that maps each cache node to its corresponding
    // coordinator swing node, and pass that to the nodes upon spawning.
    char *argv[2];
-   argv[0] = (char *)mapping_str.c_str();
+   argv[0] = (char *)spawn_nodes.mapping.c_str();
    argv[1] = NULL;
 
    // All swing nodes spawn the cache nodes.
-   MPI_Comm_spawn("./cache_layer", argv, node_count, MPI_INFO_NULL,
+   MPI_Comm_spawn("./cache_layer", argv, spawn_nodes.count, MPI_INFO_NULL,
          0, temp, &temp, MPI_ERRCODES_IGNORE);
+
+   // Store the mapping of swing nodes to cache nodes.
+   std::vector<uint32_t> mapping;
+   stringlist_to_vector(mapping, spawn_nodes.mapping);
+   cache_nodes[temp] = mapping;
+   num_cache_nodes += spawn_nodes.count;
 
    // Update bookkeeping.
    CommGroup job_comm_group;
    job_comm_group.swing = MPI_COMM_WORLD;
    job_comm_group.cache = temp;
    job_comm_group.job = MPI_COMM_NULL;
-   job_to_comms[job_num] = job_comm_group;
+   job_to_comms[spawn_nodes.job_num] = job_comm_group;
 
 #ifdef DEBUG
    printf("SwingNode %d spawned cache_nodes\n", local_rank);
 #endif
 }
 
+// TODO: CURRENTLY JUST KILLING ALL PROCESSES GRACEFULLY, WILL WANT TO MAKE THIS
+// MORE FLEXIBLE LATER BY LOOKING AT THE JOB_NUM ITSELF.
 void SwingNode::handle_exit() {
 #ifdef DEBUG
    printf("===== EXIT =====\n");
    printf("SwingNode %d\n", local_rank);
    print_msg_info(&msg_info);
 #endif
+   int result;
+   int msg_size = sizeof(ExitTemplate);
+   int comm_node_count;
+   std::vector<uint32_t> node_mapping;
+   MPI_Comm cache_comm;
 
-   fprintf(stderr, "handle_exit not implemented on swing_node!\n");
-   ASSERT(1 == 0, MPI_Abort(1, MPI_COMM_WORLD));
+   // Recv the message
+   result = recv_msg(buf, msg_info.count, MPI_UINT8_T, msg_info.src, EXIT,
+         msg_info.comm, &status);
+   MPI_ASSERT(result == MPI_SUCCESS);
+
+   ExitTemplate *format = (ExitTemplate *)buf;
+
+   // If this exit request is coming from above then it means to shut things
+   // down practively.
+   if (msg_info.comm == parent_comm) {
+      // If the parent is telling us to kill everything, then kill everything
+      if (format->job_num == KILL_ALL_JOBS) {
+         // For each communicator of swing nodes
+         for (auto const &entry : cache_nodes) { 
+            cache_comm = entry.first;
+            node_mapping = entry.second;
+            comm_node_count = node_mapping.size();
+
+            // Send exit request to cache nodes
+            for (int i = 0; i < comm_node_count; ++i) {
+               // Only send to the cache nodes you coordinate
+               if (node_mapping[i] == local_rank) {
+                  printf("SwingNode %d sending cache_comm: %d[%u] exit msg!\n",
+                     local_rank, cache_comm, i);
+                  result = send_msg(buf, msg_size, MPI_UINT8_T, i, EXIT,
+                     cache_comm, &request);
+                  MPI_ASSERT(result == MPI_SUCCESS);
+                  printf("Msg sent!\n");
+               }
+            }
+         }
+
+         // Mark the node to shutdown.
+         shutdown = true;
+      }
+      // Try and kill the specified nodes.
+      else {
+         fprintf(stderr, "SwingNode handling exit msgs to kill specific nodes unimplemented!\n");
+         MPI_ASSERT(FAILURE);
+      }
+   }
+   // If this is coming from a child then it means the child is exiting on its
+   // own free will.
+   else {
+      fprintf(stderr, "SwingNode handling exit msgs from child nodes unimplemented!\n");
+      MPI_ASSERT(FAILURE);
+      // Remove that node from the mapping of nodes and free all resources tied
+      // to it.
+      // Once all nodes in a job are removed, free up the resources associated
+      // with that job as a whole
+   }
+}
+
+void SwingNode::handle_exit_ack() {
+#ifdef DEBUG
+   printf("===== EXIT_ACK =====\n");
+   printf("SwingNode %d\n", local_rank);
+   print_msg_info(&msg_info);
+#endif
+   int result;
+
+   // Recv the message
+   result = recv_msg(buf, msg_info.count, MPI_UINT8_T, msg_info.src, EXIT_ACK,
+         msg_info.comm, &status);
+   MPI_ASSERT(result == MPI_SUCCESS);
+
+   // TODO: Remove the cache node from the list of cache nodes and incorporate
+   // this into logic maybe??
+
+   // decrement num_swing_nodes
+   --num_cache_nodes;
+
+   // reply with an exit_ack so it can close
+   result = send_msg(buf, msg_info.count, MPI_UINT8_T, msg_info.src, EXIT_ACK,
+      msg_info.comm, &request);
+
+   if (num_cache_nodes == 0 && shutdown == true) {
+      MPI_Finalize();
+   }
 }
 
 void SwingNode::handle_requests() {
@@ -339,6 +452,14 @@ void SwingNode::handle_requests() {
                handle_push_ack();
                break;
 
+            case PUSH_LOCAL:
+               handle_push_local();
+               break;
+
+            case PUSH_LOCAL_ACK:
+               handle_push_local_ack();
+               break;
+
             case DROP:
                handle_drop();
                break;
@@ -359,13 +480,17 @@ void SwingNode::handle_requests() {
                handle_exit();
                break;
 
+            case EXIT_ACK:
+               handle_exit_ack();
+               break;
+
             default:
                printf("===== DEFAULT =====\n");
                fprintf(stderr, "SwingNode %d\n", local_rank);
                fprintf(stderr, "Flag %s was not implemented!\n",
-                  msg_tag_handle((MsgTag)msg_info.tag));
+                     msg_tag_handle((MsgTag)msg_info.tag));
                print_msg_info(&msg_info);
-               ASSERT(1 == 0, MPI_Abort(MPI_COMM_WORLD, 1));
+               MPI_ASSERT(FAILURE);
                break;
          }
       }

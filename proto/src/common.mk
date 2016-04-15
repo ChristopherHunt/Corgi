@@ -13,7 +13,7 @@ $(error Neither Intel MPI nor MPICH installed, please install either.)
 endif
 endif
 
-CXXFLAGS += -O3 -std=c++0x
+CXXFLAGS += -O3 -std=c++0x -Wall
 
 includes += -I$(base_dir)/src/lib/
 
@@ -24,11 +24,11 @@ to_build := $(app) $(lib) $(test)
 default: $(to_build)
 
 clean:
-	$(RM) *.o
+	$(RM) *.o *.log
 	$(RM) $(to_build)
 
 %.o: %.cpp
-	$(CXX) $(CXXFLAGS) $(cxx_debuf_flags) -o $@ -c $< $(includes)
+	$(CXX) $(CXXFLAGS) $(cxx_debug_flags) -o $@ -c $< $(includes)
 
 %.o: %.cc
-	$(CXX) $(CXXFLAGS) $(cxx_debuf_flags) -o $@ -c $< $(includes)
+	$(CXX) $(CXXFLAGS) $(cxx_debug_flags) -o $@ -c $< $(includes)
