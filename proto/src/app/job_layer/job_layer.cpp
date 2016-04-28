@@ -7,8 +7,16 @@ int main(int argc, char **argv) {
    Cache *cache = new Cache(&argc, &argv);
 
    int local_rank;
+   int namelen;
+   int size;
+   char name[MPI_MAX_PROCESSOR_NAME];
    std::string value;
+
    MPI_Comm_rank(MPI_COMM_WORLD, &local_rank);
+   MPI_Comm_size (MPI_COMM_WORLD, &size);
+   MPI_Get_processor_name (name, &namelen);
+
+   printf ("Hello world: rank %d of %d running on %s\n", local_rank, size, name);
 
    if (local_rank == 0) {
       cache->put_local("Watson", "Corgi");    
@@ -21,7 +29,7 @@ int main(int argc, char **argv) {
    if (local_rank == 1) {
       //cache->get("Watson", value);
       //printf("job_node %d - cache->get -> %s/%s returned!\n", local_rank, "Watson",
-            //value.c_str());
+      //value.c_str());
    }
 
    if (local_rank == 1) {
@@ -55,7 +63,7 @@ int main(int argc, char **argv) {
       printf("jobe_node %d - calling push_local!\n", local_rank);
       cache->push_local("Watson", 1);
       printf("jobe_node %d - cache->push_local -> %s/%s to node %d returned!\n",
-         local_rank, "Watson", "Corgi", 1);
+            local_rank, "Watson", "Corgi", 1);
    }
 
    MPI_Barrier(MPI_COMM_WORLD);

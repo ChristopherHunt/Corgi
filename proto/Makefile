@@ -75,15 +75,15 @@ $(libraries):
 	$(MAKE) -s -C $@
 
 $(tests): $(test_apps)
-	$(MAKE) -s -C $@
+	#$(MAKE) -s -C $@
 
 debug:
 	$(eval cxx_debug_flags += -D DEBUG)
 	$(MAKE) build
 
 run:
-	#cd bin && mpirun -n 4 -ppn 1 -iface eth0 -f $(host_file) ./leader_layer
-	cd bin && mpirun -n 1 ./leader_layer job_layer 2>&1 | tee $(log_dir)/run.log
+	cd bin && mpirun -n 1 -ppn 1 -iface eth0 -f ../$(host_file) ./leader_layer ./job_layer
+	#cd bin && mpirun -n 1 ./leader_layer ./job_layer 2>&1 | tee $(log_dir)/run.log
 
 clean:
 	$(RM) -rf $(lib_dir)
