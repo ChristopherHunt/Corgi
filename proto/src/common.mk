@@ -1,7 +1,7 @@
 SHELL := /bin/bash
 
-mpich = $(shell command -v mpic++)
-mpiicc = $(shell command -v mpiicc)
+mpich := $(shell command -v mpic++)
+mpiicc := $(shell command -v mpiicc)
 
 ifdef mpich
 CXX := mpic++
