@@ -3,7 +3,7 @@
 #include <string.h>
 #include <mpi.h>
 #include "utility/utils/utils.h"
-#include "cache_api.h"
+#include "cache_api/cache_api.h"
 
 Cache::Cache(int *argc_ptr, char ***argv_ptr) {
    MPI_ASSERT(argc_ptr != NULL);

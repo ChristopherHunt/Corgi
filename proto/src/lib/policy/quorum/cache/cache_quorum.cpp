@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <algorithm>
-#include "cache_quorum.h"
+#include "policy/quorum/cache/cache_quorum.h"
 #include "utility/utils/utils.h"
 
 CacheQuorum::CacheQuorum(Node *node) {

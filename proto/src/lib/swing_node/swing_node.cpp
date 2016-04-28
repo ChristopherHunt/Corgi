@@ -1,6 +1,6 @@
 #include <stdlib.h>
 #include "policy/quorum/swing/swing_quorum.h"
-#include "swing_node.h"
+#include "swing_node/swing_node.h"
 
 SwingNode::SwingNode() {
    // Allocates data structures within this object.

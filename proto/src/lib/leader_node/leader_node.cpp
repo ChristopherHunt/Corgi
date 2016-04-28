@@ -3,7 +3,7 @@
 #include <string.h>
 #include <iostream>
 #include <sstream>
-#include "leader_node.h"
+#include "leader_node/leader_node.h"
 
 LeaderNode::LeaderNode() {
    // Allocate space for data structures within this object.

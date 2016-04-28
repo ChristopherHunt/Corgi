@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <algorithm>
-#include "swing_quorum.h"
+#include "policy/quorum/swing/swing_quorum.h"
 #include "utility/utils/utils.h"
 
 SwingQuorum::SwingQuorum(Node *node) {

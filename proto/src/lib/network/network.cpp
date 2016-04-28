@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <string>
-#include "network.h"
+#include "network/network.h"
 #include "utility/utils/utils.h"
 
 void print_msg_info(MsgInfo *msg_info) {

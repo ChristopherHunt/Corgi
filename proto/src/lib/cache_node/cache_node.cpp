@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "policy/quorum/cache/cache_quorum.h"
-#include "cache_node.h"
+#include "cache_node/cache_node.h"
 
 // TODO: NEED TO ADD FUNCTIONALITY TO ADD JOBS WITHOUT ADDING CACHE NODES.
 
