@@ -7,12 +7,26 @@ log_dir := $(base_dir)/log
 bin_dir := $(base_dir)/bin
 bin_test_dir := $(bin_dir)/test
 
+mpich := $(shell command -v mpic++)
+mpiicc := $(shell command -v mpiicc)
+
+ifdef mpich
+MPICXX := mpic++
+else
+ifdef mpiicc
+MPICXX := mpiicc
+else
+$(error Neither Intel MPI nor MPICH installed, please install either.)
+endif
+endif
+
 export base_dir
 export lib_dir
 export log_dir
 export bin_dir
 export bin_test_dir
 export cxx_debug_flags
+export MPICXX
 
 # Enumeration of all of the libraries to compile for the project
 lib_cache_api := src/lib/cache_api
@@ -75,15 +89,20 @@ $(libraries):
 	$(MAKE) -s -C $@
 
 $(tests): $(test_apps)
-	#$(MAKE) -s -C $@
+	@if [ -z "$(mpiicc)" ]; then \
+		$(MAKE) -s -C $@ ; \
+	fi
 
 debug:
 	$(eval cxx_debug_flags += -D DEBUG)
 	$(MAKE) build
 
 run:
-	#cd bin && mpirun -n 1 -ppn 1 -iface eth0 -f ../$(host_file) ./leader_layer ./job_layer
-	cd bin && mpirun -n 1 ./leader_layer ./job_layer 2>&1 | tee $(log_dir)/run.log
+	@if [ -z "$(mpich)" ]; then \
+		cd bin && mpirun -n 1 -ppn 1 -iface eth0 -f ../$(host_file) ./leader_layer ./job_layer ;\
+	else \
+		cd bin && mpirun -n 1 ./leader_layer ./job_layer 2>&1 | tee $(log_dir)/run.log ;\
+	fi
 
 clean:
 	$(RM) -rf $(lib_dir)

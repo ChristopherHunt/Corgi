@@ -7,7 +7,7 @@ includes += -I$(gtest_dir) -I$(gtest_dir)/include
 #temp := ""
 
 $(test): $(ld_libs) $(objs)
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(objs) $(ld_libs) -o $@ $(includes)
+	$(MPICXX) $(CXXFLAGS) $(LDFLAGS) $(objs) $(ld_libs) -o $@ $(includes)
 	cp $@ $(bin_test_dir)
 	#./$@
 	$(run_test) &> $(log_dir)/$@.log
